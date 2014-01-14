@@ -1,3 +1,6 @@
+repos/*
+data/*
+
 *.py[cod]
 
 # C extensions
