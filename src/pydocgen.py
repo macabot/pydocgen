@@ -15,7 +15,7 @@ def generate_all_docstrings(tree, positions = None):
         positions = {}
 
     class_name = tree.__class__.__name__
-    if class_name == 'FunctionDef':
+    if class_name == 'FunctionDef' and ast.get_docstring(tree) == None:
         positions[tree.lineno] = (generate_docstring(tree), tree.col_offset + indent)
         
     for child in ast.iter_child_nodes(tree):
