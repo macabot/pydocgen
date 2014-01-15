@@ -35,17 +35,24 @@ def iter_py_in_zip(zip_file):
             yield path
 
 def defs_with_docs_info(tree, line_info = None):
+    """Search the AST for all (non-nested) functions with docstrings and return
+    a list of start-line-numbers, end-line-numbers and function name sorted by 
+    start-line-number."""
     if line_info == None:
         line_info = []
 
+    function_def = tree.__class__.__name__ == 'FunctionDef'
     line_max = getattr(tree, 'lineno', None)
     for child in ast.iter_child_nodes(tree):
-        _, child_line = defs_with_docs_info(child, line_info)
+        if function_def:
+            # do not look for nested functions
+            _, child_line = defs_with_docs_info(child)
+        else:
+            _, child_line = defs_with_docs_info(child, line_info)
         if child_line > line_max:
             line_max = child_line
 
-    class_name = tree.__class__.__name__
-    if class_name == 'FunctionDef':
+    if function_def:
         docstring = ast.get_docstring(tree)
         if docstring != None:
             line_info.append((tree.lineno, line_max, tree.name))
@@ -53,6 +60,8 @@ def defs_with_docs_info(tree, line_info = None):
     return line_info, line_max
 
 def extract_defs_and_docs(py_path, out, info_out, openfile = open):
+    """Extract all functions with docstrings from py_path and write them to
+    out. In info_out write info about the functions that were extracted."""
     with openfile(py_path, 'r') as py_file:
         tree = ast.parse(py_file.read().strip())
         def_info, _ = defs_with_docs_info(tree)
