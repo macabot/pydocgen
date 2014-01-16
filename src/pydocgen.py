@@ -10,6 +10,7 @@ def generate_all_docstrings(tree, positions = None):
     """Travel AST and generate a docstring for each function. Return a dict
     that maps a function's line number to its docstring and the docstring's
     indent."""
+    # TODO set col_offset to col_offset of one of tree's children
     indent = 4
     if positions == None:
         positions = {}
