@@ -3,26 +3,34 @@ import ast
 import sys
 
 def generate_docstring(tree):
+    """Translate an AST to a docstring."""
     docstring = 'TODO' # TODO
     return '\"\"\"%s\"\"\"\n' % docstring
 
 def generate_all_docstrings(tree, positions = None):
     """Travel AST and generate a docstring for each function. Return a dict
     that maps a function's line number to its docstring and the docstring's
-    indent."""
-    # TODO set col_offset to col_offset of one of tree's children
-    indent = 4
+    col_offset."""
     if positions == None:
         positions = {}
 
     class_name = tree.__class__.__name__
     if class_name == 'FunctionDef' and ast.get_docstring(tree) == None:
-        positions[tree.lineno] = (generate_docstring(tree), tree.col_offset + indent)
+        positions[tree.lineno] = (generate_docstring(tree), get_child_indent(tree))
         
     for child in ast.iter_child_nodes(tree):
         generate_all_docstrings(child, positions)
         
     return positions
+    
+def get_child_indent(tree):
+    """Get the col_offset of one of the tree's children."""
+    for child in ast.iter_child_nodes(tree):
+        col_offset = getattr(child, 'col_offset', None)
+        if col_offset != None:
+            return col_offset
+        
+    raise ValueError('%s has no child with attribute col_offset' % tree)
 
 def apply_docstrings(py_path, write_path):
     """Create a copy of a python file that contains docstrings generated for 
@@ -37,7 +45,11 @@ def apply_docstrings(py_path, write_path):
             out.write(line)
             if lineno in docstrings:
                 docstring, col_offset = docstrings[lineno]
-                out.write("%s%s" % (' ' * col_offset, docstring))
+                if line.strip()[-1] == ':':
+                    out.write("%s%s" % (' ' * col_offset, docstring))
+                else:
+                    docstrings[lineno+1] = docstrings[lineno]
+                    del docstrings[lineno]
 
 def main():
     args = sys.argv[1:]
