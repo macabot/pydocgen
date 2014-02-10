@@ -33,9 +33,18 @@ def create_parallel_corpus(in_path, out_path, filters = None, max_count = float(
                                 return
                             count += 1
 
-                            sc_out.write('%s\n' % source_code_words)
-                            doc_out.write('%s\n' % docstring)
-                            write_info(info_out, tree, count, py_path)
+                            try:
+                                write_info(info_out, tree, count, py_path)
+                                sc_out.write('%s\n' % source_code_words)
+                                doc_out.write('%s\n' % docstring)
+                            except:
+                                print 'py_path: %s' % py_path
+                                print 'lineno: %s' % tree.lineno
+                                print 'docstring:'
+                                print docstring
+                                print 'source_code_words:'
+                                print source_code_words
+                                raise
 
 def write_info(info_out, tree, count, py_path):
     info_out.write('<count:%d>\n' % count)
@@ -122,7 +131,7 @@ def test_create_parallel_corpus():
     in_path = '../repos/nltk-develop.zip'
     out_path = '../data/nltk-develop'
     filters = [remove_doctests]
-    max_count = 10
+    max_count = float('inf')
     create_parallel_corpus(in_path, out_path, filters, max_count)
 
 def main():
