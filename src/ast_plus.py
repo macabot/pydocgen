@@ -67,13 +67,15 @@ def parallel_functions(tree, filters = None, parallel = None):
         if docstring != None:
             docstring = docstring.encode('utf-8')
             sentence = ' '.join(tree_to_words(tree))
-            parallel.append((clean_doc(docstring, filters), sentence, tree))
+            clean_docstring = clean_doc(docstring, filters)
+            if clean_docstring != '':
+                parallel.append((clean_docstring, sentence, tree))
 
     for child in ast.iter_child_nodes(tree):
         parallel_functions(child, filters, parallel)
 
     return parallel
-    
+
 def clean_doc(docstring, filters = None):
     """Filter unimportant parts of the docstring and make all words white space
     separated."""
@@ -87,14 +89,14 @@ def tree_to_words(tree, words = None):
     """Extract the important tree labels from the tree."""
     if words == None:
         words = []
-        
+
     if not tree.ignore:
         words.append(tree.label)
     for child in ast.iter_child_nodes(tree):
         tree_to_words(child, words)
-        
+
     return words
-    
+
 def add_ignore_labels(tree):
     class_name = tree.__class__.__name__
     tree.ignore = class_name in IGNORE_MAP
