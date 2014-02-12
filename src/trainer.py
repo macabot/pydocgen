@@ -1,11 +1,10 @@
 import zipfile
 import os
 import ast
-from collections import Counter
-import matplotlib.pyplot as plt
 
 from ast_plus import ASTPlus
-from filters import remove_doctests
+import docfilters
+import unparse
 
 
 def create_parallel_corpus(in_path, out_path, filters = None, max_count = float('inf')):
@@ -32,7 +31,7 @@ def create_parallel_corpus(in_path, out_path, filters = None, max_count = float(
                             if count >= max_count:
                                 return
                             count += 1
-
+                            
                             try:
                                 write_info(info_out, tree, count, py_path)
                                 sc_out.write('%s\n' % source_code_words)
@@ -47,17 +46,20 @@ def create_parallel_corpus(in_path, out_path, filters = None, max_count = float(
                                 raise
 
 def write_info(info_out, tree, count, py_path):
+    """Write to info_out the following information:
+    path to the file
+    line number of function in file
+    source code of function"""
     info_out.write('<count:%d>\n' % count)
-    info_out.write('    <path>\n')
-    info_out.write('    %s\n' % py_path)
-    info_out.write('    </path>\n')
-    info_out.write('    <lineno>\n')
-    info_out.write('    %s\n' % tree.lineno)
-    info_out.write('    </lineno>\n')
+    info_out.write('<path>%s</path>\n' % py_path)
+    info_out.write('<lineno>%s</lineno>\n' % tree.lineno)
+    info_out.write('<code>\n')
+    info_out.write('%s\n' % unparse.to_source(tree))
+    info_out.write('</code>\n')
     info_out.write('</count:%d>\n' % count)
-    # TODO unparse tree
 
 def iter_files_with_extension(path, extension):
+    """Yield all files in a path with the given extension."""
     for root, _dirs, files in os.walk(path):
         for name in files:
             _, ext = os.path.splitext(path)
@@ -71,19 +73,10 @@ def iter_py_in_zip_file(zip_file): # TODO cache python paths
         if extension == '.py':
             yield path
 
-def plot_zipf(freqs):
-    counts = Counter()
-    for freq in freqs:
-        counts[freq] += 1
-
-    sorted_counts = sorted(counts.items())
-    x_values, y_values = zip(*sorted_counts)
-    plt.plot(x_values, y_values, 'ro')
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.show()
-
 def docs_in_tree(tree, doc_names = None, docs = None):
+    """Get all docstrings in a tree. Doc_names specifies the classes that could
+    contain docstrings. By default these are: 'FunctionDef', 'ClassDef' and 
+    'Module'."""
     if docs == None:
         docs = []
     if doc_names == None:
@@ -99,6 +92,7 @@ def docs_in_tree(tree, doc_names = None, docs = None):
     return docs
 
 def binarize_rule_freqs(rule_freqs):
+    """Binarize all rules in rule_freqs."""
     binary_freqs = {}
     for rule, freq in rule_freqs.iteritems():
         binary_rules = binarize(rule)
@@ -108,6 +102,7 @@ def binarize_rule_freqs(rule_freqs):
     return binary_freqs
 
 def binarize(rule):
+    """Binarize a rule."""
     if len(rule) <= 3:
         return [rule]
     sub_name = "X%sX" % (rule[0],)
@@ -117,20 +112,11 @@ def binarize(rule):
     bin_rules.append((sub_name, rule[-2], rule[-1]))
     return bin_rules
 
-
-def test_zipf():
-    with open('../data/django.binary_rules', 'r') as rule_file:
-        freqs = []
-        for line in rule_file:
-            freq, _ = line.split(':')
-            freqs.append(int(freq))
-
-        plot_zipf(freqs)
-
 def test_create_parallel_corpus():
+    """Create a parallel corpus of the nltk library."""
     in_path = '../repos/nltk-develop.zip'
     out_path = '../data/nltk-develop'
-    filters = [remove_doctests]
+    filters = [docfilters.remove_doctests, docfilters.remove_parameter_descriptions]
     max_count = float('inf')
     create_parallel_corpus(in_path, out_path, filters, max_count)
 
