@@ -36,7 +36,7 @@ def create_parallel_corpus(in_path, out_path, filters = None, max_count = float(
                         try:
                             py_text = py_file.read().strip()
                             tree = ASTPlus(ast.parse(py_text))
-                        except SyntaxError, e: # could not parse the python file (expect python 2.x)
+                        except SyntaxError as e: # could not parse the python file (expect python 2.x)
                             logging.exception('\nSyntaxError in file: %s\n%s\n' % (py_path, e))
                             continue
                         except:
@@ -127,7 +127,12 @@ def test_create_parallel_corpus():
     """Create a parallel corpus of packages."""
     path = '../repos'
     extension = '.zip'
-    for in_path in iter_files_with_extension(path, extension):
+    #paths = iter_files_with_extension(path, extension)
+    names = ['thomaswaldmann-moin-1.9', 'PIL-Imaging-1.1.7',
+             'pysnmp-4.2.5', 'scipy-master', 'numpy-master', 'matplotlib-master',
+             'ipython-master', 'pandas-master', 'sympy-master', 'nose-master']
+    paths = ['../repos/' + name + '.zip' for name in names]
+    for in_path in paths:
         print in_path
         in_basename = os.path.basename(in_path)
         in_root, _ext = os.path.splitext(in_basename)
