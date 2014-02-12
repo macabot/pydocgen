@@ -65,7 +65,7 @@ def parallel_functions(tree, filters = None, parallel = None):
     if tree.__class__.__name__ == 'FunctionDef':
         docstring = ast.get_docstring(tree)
         if docstring != None:
-            docstring = docstring.encode('utf-8')
+            #docstring = docstring.encode('utf-8')
             sentence = ' '.join(tree_to_words(tree))
             clean_docstring = clean_doc(docstring, filters)
             if clean_docstring != '':

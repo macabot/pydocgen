@@ -1,10 +1,16 @@
 import zipfile
 import os
 import ast
+import logging
+import sys
 
 from ast_plus import ASTPlus
 import docfilters
 import unparse
+
+reload(sys)
+sys.setdefaultencoding('utf-8')
+logging.basicConfig(filename='./log.txt', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
 
 def create_parallel_corpus(in_path, out_path, filters = None, max_count = float('inf')):
@@ -27,7 +33,15 @@ def create_parallel_corpus(in_path, out_path, filters = None, max_count = float(
             with zipfile.ZipFile(zip_path, 'r') as zip_file:
                 for py_path in iter_py_in_zip_file(zip_file):
                     with zip_file.open(py_path, 'r') as py_file:
-                        tree = ASTPlus(ast.parse(py_file.read().strip()))
+                        try:
+                            py_text = py_file.read().strip()
+                            tree = ASTPlus(ast.parse(py_text))
+                        except SyntaxError, e: # could not parse the python file (expect python 2.x)
+                            logging.exception('\nSyntaxError in file: %s\n%s\n' % (py_path, e))
+                            continue
+                        except:
+                            print 'py_path: %s' % py_path
+                            raise
                         for docstring, source_code_words, tree in tree.parallel_functions(filters):
                             if count >= max_count:
                                 return
@@ -40,10 +54,6 @@ def create_parallel_corpus(in_path, out_path, filters = None, max_count = float(
                             except:
                                 print 'py_path: %s' % py_path
                                 print 'lineno: %s' % tree.lineno
-                                print 'docstring:'
-                                print docstring
-                                print 'source_code_words:'
-                                print source_code_words
                                 raise
 
 def write_info(info_out, tree, count, py_path):
