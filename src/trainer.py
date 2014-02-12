@@ -22,6 +22,7 @@ def create_parallel_corpus(in_path, out_path, filters = None, max_count = float(
     info_path = out_path + '.info'
     count = 0
     with open(sc_path, 'w') as sc_out, open(doc_path, 'w') as doc_out, open(info_path, 'w') as info_out:
+        info_out.write('<in_path>%s</in_path>\n' % in_path)
         for zip_path in zip_paths:
             with zipfile.ZipFile(zip_path, 'r') as zip_file:
                 for py_path in iter_py_in_zip_file(zip_file):
@@ -62,7 +63,7 @@ def iter_files_with_extension(path, extension):
     """Yield all files in a path with the given extension."""
     for root, _dirs, files in os.walk(path):
         for name in files:
-            _, ext = os.path.splitext(path)
+            _root, ext = os.path.splitext(name)
             if ext == extension:
                 yield os.path.join(root, name)
 
@@ -113,12 +114,17 @@ def binarize(rule):
     return bin_rules
 
 def test_create_parallel_corpus():
-    """Create a parallel corpus of the nltk library."""
-    in_path = '../repos/nltk-develop.zip'
-    out_path = '../data/nltk-develop'
-    filters = [docfilters.remove_doctests, docfilters.remove_parameter_descriptions]
-    max_count = float('inf')
-    create_parallel_corpus(in_path, out_path, filters, max_count)
+    """Create a parallel corpus of packages."""
+    path = '../repos'
+    extension = '.zip'
+    for in_path in iter_files_with_extension(path, extension):
+        print in_path
+        in_basename = os.path.basename(in_path)
+        in_root, _ext = os.path.splitext(in_basename)
+        out_path = os.path.join('../data/', in_root)
+        filters = [docfilters.remove_doctests, docfilters.remove_parameter_descriptions]
+        max_count = float('inf')
+        create_parallel_corpus(in_path, out_path, filters, max_count)
 
 def main():
     pass
