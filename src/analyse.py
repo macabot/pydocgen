@@ -48,6 +48,9 @@ def test_zipf():
 
 def count_lines_with_extension(path, extension):
     return sum(number_of_lines(p) for p in trainer.iter_files_with_extension(path, extension))
+    
+def num_lines_with_extension(path, extension):
+    return ((number_of_lines(p), p) for p in trainer.iter_files_with_extension(path, extension))
 
 def number_of_lines(path):
     with open(path, 'r') as file:
@@ -55,9 +58,17 @@ def number_of_lines(path):
         
 def test_count_lines_with_extension():
     print count_lines_with_extension('../data', '.doc')
+    
+def test_num_lines_with_extension():
+    total = 0
+    for num_lines, path in num_lines_with_extension('../data', '.doc'):
+        print '%s: %s' % (path, num_lines)
+        total += num_lines
+    print 'total: %s' % total
         
 
 if __name__ == '__main__':
     #test_average_ratio()
     #test_zipf()
-    test_count_lines_with_extension()
+    #test_count_lines_with_extension()
+    test_num_lines_with_extension()
