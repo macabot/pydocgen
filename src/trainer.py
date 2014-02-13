@@ -9,7 +9,7 @@ import docfilters
 import unparse
 
 reload(sys)
-sys.setdefaultencoding('utf-8')
+sys.setdefaultencoding('utf-8') # FIXME this is dangerous
 logging.basicConfig(filename='./log.txt', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
 
