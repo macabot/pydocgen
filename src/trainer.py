@@ -5,7 +5,6 @@ import logging
 import sys
 
 from ast_plus import ASTPlus
-import docfilters
 import unparse
 
 reload(sys)
@@ -13,7 +12,7 @@ sys.setdefaultencoding('utf-8') # FIXME this is dangerous
 logging.basicConfig(filename='./log.txt', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
 
-def create_parallel_corpus(in_path, out_path, filters = None, max_count = float('inf')):
+def create_parallel_corpus(in_path, out_path, max_count = float('inf')):
     """For all python files in all zip files, align rules in an AST with its
     docstring."""
     if os.path.isdir(in_path):
@@ -32,21 +31,25 @@ def create_parallel_corpus(in_path, out_path, filters = None, max_count = float(
         for zip_path in zip_paths:
             with zipfile.ZipFile(zip_path, 'r') as zip_file:
                 for py_path in iter_py_in_zip_file(zip_file):
+                    print py_path
                     with zip_file.open(py_path, 'r') as py_file:
                         try:
                             py_text = py_file.read().strip()
-                            tree = ASTPlus(ast.parse(py_text))
-                        except SyntaxError as e: # could not parse the python file (expect python 2.x)
-                            logging.exception('\nSyntaxError in file: %s\n%s\n' % (py_path, e))
+                            ast_tree = ast.parse(py_text)
+                        except (SyntaxError, ValueError) as e: # could not parse the python file (expect python 2.x)
+                            logging.exception('\nError when parsing file: %s\n%s\n' % (py_path, e))
                             continue
                         except:
                             print 'py_path: %s' % py_path
                             raise
-                        for docstring, source_code_words, tree in tree.parallel_functions(filters):
+
+                        tree = ASTPlus(ast_tree)
+
+                        for docstring, source_code_words, tree in tree.parallel_functions():
                             if count >= max_count:
                                 return
                             count += 1
-                            
+
                             try:
                                 write_info(info_out, tree, count, py_path)
                                 sc_out.write('%s\n' % source_code_words)
@@ -86,7 +89,7 @@ def iter_py_in_zip_file(zip_file): # TODO cache python paths
 
 def docs_in_tree(tree, doc_names = None, docs = None):
     """Get all docstrings in a tree. Doc_names specifies the classes that could
-    contain docstrings. By default these are: 'FunctionDef', 'ClassDef' and 
+    contain docstrings. By default these are: 'FunctionDef', 'ClassDef' and
     'Module'."""
     if docs == None:
         docs = []
@@ -125,21 +128,23 @@ def binarize(rule):
 
 def test_create_parallel_corpus():
     """Create a parallel corpus of packages."""
-    path = '../repos'
-    extension = '.zip'
+    #path = '../repos'
+    #extension = '.zip'
     #paths = iter_files_with_extension(path, extension)
-    names = ['thomaswaldmann-moin-1.9', 'PIL-Imaging-1.1.7',
-             'pysnmp-4.2.5', 'scipy-master', 'numpy-master', 'matplotlib-master',
-             'ipython-master', 'pandas-master', 'sympy-master', 'nose-master']
+    names = ['docutils-0.11']#, 'Twisted-13.2.0', 'Zope-master', 'Products.CMFPlone-master',
+    """        'plone.api-master', 'rptlab-pyrxp', 'rptlab-preppy', 'bittorrent',
+             'spambayes-1.1a6', 'wxPython-src-3.0.0.0', 'mailman-3.0.0b3',
+             'plucker-1.8', 'feedparser-5.1.3', 'shtoom-0.2', 'divmod.org-master',
+             'moin-1.9.7', 'PythonCard-0.8.2', 'OpenGLContext-2.2.0a3', 'pytables-3.1.0',
+             'eric5-5.4.1']
+    """
     paths = ['../repos/' + name + '.zip' for name in names]
     for in_path in paths:
         print in_path
         in_basename = os.path.basename(in_path)
         in_root, _ext = os.path.splitext(in_basename)
         out_path = os.path.join('../data/', in_root)
-        filters = [docfilters.remove_doctests, docfilters.remove_parameter_descriptions]
-        max_count = float('inf')
-        create_parallel_corpus(in_path, out_path, filters, max_count)
+        create_parallel_corpus(in_path, out_path)
 
 def main():
     pass

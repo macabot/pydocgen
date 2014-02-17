@@ -34,28 +34,31 @@ IGNORE_MAP = set([#'arguments',
                   'Str', # ignore or map to 's', i.e. content of the string?
                   'UnaryOp'])
 
+NEWLINE_SUB = '</NEWLINE>'
+
 class ASTPlus(object):
+    """Add factors to an AST"""
 
     def __init__(self, ast_tree, split = False):
         # TODO make trees uniform, e.g. order arguments of Equals alphabetically
         add_parents(ast_tree)
         add_labels(ast_tree, split)
-        add_factors(ast_tree)
+        self.factor_keys = add_factors(ast_tree)
         add_ignore_labels(ast_tree)
         self.tree = ast_tree
 
-    def parallel_functions(self, filters = None):
+    def parallel_functions(self):
         """For each function in the tree return a tuple with the words in its
         docstring and the important nodes in it's tree. Ignore functions without
         a docstring."""
-        return parallel_functions(self.tree, filters)
+        return parallel_functions(self.tree, self.factor_keys)
 
     def draw(self, show_factors = None, show_ignore = False):
         """Convert an ast tree to a nltk tree"""
         draw(self.tree, show_factors, show_ignore)
 
 
-def parallel_functions(tree, filters = None, parallel = None):
+def parallel_functions(tree, factor_keys, parallel = None):
     """For each function in the tree return a tuple with the words in its
     docstring and the important nodes in it's tree. Ignore functions without
     a docstring."""
@@ -65,23 +68,23 @@ def parallel_functions(tree, filters = None, parallel = None):
     if tree.__class__.__name__ == 'FunctionDef':
         docstring = ast.get_docstring(tree)
         if docstring != None:
-            #docstring = docstring.encode('utf-8')
-            sentence = ' '.join(tree_to_words(tree))
-            clean_docstring = clean_doc(docstring, filters)
-            if clean_docstring != '':
-                parallel.append((clean_docstring, sentence, tree))
+            docstring = docstring.strip()
+            if docstring != '':
+                sentence = ' '.join(tree_to_factors(tree, factor_keys))
+                docstring = re.sub(r'\n', NEWLINE_SUB, docstring)
+                parallel.append((docstring, sentence, tree))
 
     for child in ast.iter_child_nodes(tree):
-        parallel_functions(child, filters, parallel)
+        parallel_functions(child, factor_keys, parallel)
 
     return parallel
 
-def clean_doc(docstring, filters = None):
+def clean_doc(docstring, docfilters = None):
     """Filter unimportant parts of the docstring and make all words white space
     separated."""
-    if filters != None:
-        for filter in filters:
-            docstring = filter(docstring)
+    if docfilters != None:
+        for docfilter in docfilters:
+            docstring = docfilter(docstring)
     docstring = re.sub(r'\s+', ' ', docstring.strip())
     return docstring
 
@@ -90,14 +93,28 @@ def tree_to_words(tree, words = None):
     if words == None:
         words = []
 
-    if not tree.ignore:
-        words.append(tree.label)
+    words.append(tree.label)
     for child in ast.iter_child_nodes(tree):
         tree_to_words(child, words)
 
     return words
 
+def tree_to_factors(tree, factor_keys, factored_words = None):
+    """Extract the important tree labels from the tree."""
+    if factored_words == None:
+        factored_words = []
+
+    node_factors = tree.label + '|' + \
+                    '|'.join(tree.factors[key] for key in factor_keys)
+    factored_words.append(node_factors)
+    for child in ast.iter_child_nodes(tree):
+        tree_to_factors(child, factor_keys, factored_words)
+
+    return factored_words
+
 def add_ignore_labels(tree):
+    """For each node in the tree add the attribute 'ignore' set according to the
+    ignore map."""
     class_name = tree.__class__.__name__
     tree.ignore = class_name in IGNORE_MAP
     for child in ast.iter_child_nodes(tree):
@@ -117,7 +134,7 @@ def get_name_map(tree, name_map):
     return class_name
 
 def split_camel_case(name):
-    # see http://stackoverflow.com/a/1176023/854488
+    """ TODO see http://stackoverflow.com/a/1176023/854488"""
     #return [name.lower()]
     return [name]
 
@@ -152,6 +169,8 @@ def add_factors(tree, class_def_name = None):
 
     for child in ast.iter_child_nodes(tree):
         add_factors(child, class_def_name)
+
+    return ['ast_name', 'parent', 'context', 'class']
 
 def root(tree):
     """Return the root of a tree."""
