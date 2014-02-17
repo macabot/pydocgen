@@ -12,9 +12,9 @@ def remove_doctests(docstring):
     except ValueError as e:
         logging.exception('\nValueError when removing doctest from:\n---\n%s\n---\n%s\n' % (docstring, e))
         return docstring
-    
+
 def remove_parameter_descriptions(docstring):
-    """Remove parameter descriptions that start with a colon. 
+    """Remove parameter descriptions that start with a colon.
     E.g. ':type list sequence"""
     # TODO test
     lines = docstring.split('\n')
@@ -24,3 +24,13 @@ def remove_parameter_descriptions(docstring):
         if not (len(stripped_line) > 0 and stripped_line[0] == ':'):
             good_lines.append(line)
     return '\n'.join(good_lines)
+
+def remove_wx_wrappers(docstring):
+    """Remove docstrings that are wrappers. Examples:
+    IsOk(self) -> bool
+    Focus(self, long index)
+    TODO test
+    """
+    if re.search(r'\S+\(.*\)', docstring.strip()):
+        return ''
+    return docstring
