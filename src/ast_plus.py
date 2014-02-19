@@ -198,3 +198,19 @@ def ast_to_nltk_tree(ast_tree, show_factors = None, show_ignore = False):
     if show_ignore and ast_tree.ignore:
         parent_name = 'I_' + parent_name
     return Tree(parent_name, [ast_to_nltk_tree(child, show_factors, show_ignore) for child in ast.iter_child_nodes(ast_tree)])
+    
+def ast_to_qtree(node, add_prefix = True):
+    """Convert a tree to tikz-qtree notation."""
+    children = list(ast.iter_child_nodes(node))
+    if len(children) == 0:
+        print node.label
+        return node.label
+    
+    prefix = ''
+    if add_prefix:
+        prefix = r'\Tree '
+    qtree = '%s[.%s %s ]' % (prefix, node.label, ' '.join(ast_to_qtree(child, False) for child in children))
+    #print qtree
+    return qtree
+    
+
