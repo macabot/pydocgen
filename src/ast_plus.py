@@ -1,26 +1,21 @@
+"""
+By Michael Cabot
+
+Add attributes to the AST
+Extract parallel data (source code words - docstring words) from an AST
+
+TODO subclass AST
+"""
+
 import ast
 import re
 
-TOKENIZE_MAP = {'arguments': '',
-                'Attribute': 'attr',
-                'BinOp': '',
-                #'Call': '',
-                'ClassDef': 'name',
-                #'Eq': '==',
-                'FunctionDef': 'name',
-                'Load': '',
-                'Name': 'id',
-                'Num': 'n',
-                'Param': '',
-                #'Sub': '-',
-                'Store': '',
-                'UnaryOp': ''
-                }
 LABEL_MAP = {'Attribute': 'attr',
              'ClassDef': 'name',
              'FunctionDef': 'name',
              'Name': 'id',
              'Num': 'n'}
+             #'Str': 's'}
 IGNORE_MAP = set([#'arguments',
                   'BinOp',
                   'BoolOp',
@@ -31,7 +26,7 @@ IGNORE_MAP = set([#'arguments',
                   #'Module',
                   'Param',
                   'Store',
-                  'Str', # ignore or map to 's', i.e. content of the string?
+                  #'Str', # ignore or map to 's', i.e. content of the string?
                   'UnaryOp'])
 
 NEWLINE_SUB = '</NEWLINE>'
@@ -45,6 +40,7 @@ class ASTPlus(object):
         add_labels(ast_tree, split)
         self.factor_keys = add_factors(ast_tree)
         add_ignore_labels(ast_tree)
+        label_docstring_expr(ast_tree)
         self.tree = ast_tree
 
     def parallel_functions(self):
@@ -53,9 +49,9 @@ class ASTPlus(object):
         a docstring."""
         return parallel_functions(self.tree, self.factor_keys)
 
-    def draw(self, show_factors = None, show_ignore = False):
+    def draw(self, factor_keys = None, show_ignore = False):
         """Convert an ast tree to a nltk tree"""
-        draw(self.tree, show_factors, show_ignore)
+        draw(self.tree, factor_keys, show_ignore)
 
 
 def parallel_functions(tree, factor_keys, parallel = None):
@@ -70,7 +66,7 @@ def parallel_functions(tree, factor_keys, parallel = None):
         if docstring != None:
             docstring = docstring.strip()
             if docstring != '':
-                sentence = ' '.join(tree_to_factors(tree, factor_keys))
+                sentence = ' '.join(tree_to_words(tree, factor_keys))
                 docstring = re.sub(r'\n', NEWLINE_SUB, docstring)
                 parallel.append((docstring, sentence, tree))
 
@@ -88,29 +84,30 @@ def clean_doc(docstring, docfilters = None):
     docstring = re.sub(r'\s+', ' ', docstring.strip())
     return docstring
 
-def tree_to_words(tree, words = None):
-    """Extract the important tree labels from the tree."""
+def tree_to_words(tree, factor_keys = None, ignore_docstring = True, words = None):
+    """Extract the important tree labels from the tree. If the values of the
+    factor keys separated by '|'."""
     if words == None:
         words = []
 
-    words.append(tree.label)
+    word = tree.label
+    if factor_keys != None:
+        word += '|' + '|'.join(tree.factors[key] for key in factor_keys)
+    words.append(word)
     for child in ast.iter_child_nodes(tree):
-        tree_to_words(child, words)
+        if ignore_docstring and child.gen_docstring:
+            continue
+        tree_to_words(child, factor_keys, ignore_docstring, words)
 
     return words
 
-def tree_to_factors(tree, factor_keys, factored_words = None):
-    """Extract the important tree labels from the tree."""
-    if factored_words == None:
-        factored_words = []
-
-    node_factors = tree.label + '|' + \
-                    '|'.join(tree.factors[key] for key in factor_keys)
-    factored_words.append(node_factors)
+def label_docstring_expr(tree):
+    """Label the Expr node that generates a docstring."""
+    tree_class_name = tree.__class__.__name__
     for child in ast.iter_child_nodes(tree):
-        tree_to_factors(child, factor_keys, factored_words)
-
-    return factored_words
+        child.gen_docstring = tree_class_name == 'FunctionDef' and \
+                       child.__class__.__name__ == 'Expr'
+        label_docstring_expr(child)
 
 def add_ignore_labels(tree):
     """For each node in the tree add the attribute 'ignore' set according to the
@@ -184,33 +181,31 @@ def add_parents(tree, parent = None):
     for child in ast.iter_child_nodes(tree):
         add_parents(child, tree)
 
-def draw(tree, show_factors = None, show_ignore = False):
+def draw(tree, factor_keys = None, show_ignore = False):
     """Convert the tree to a nltk tree and draw it."""
-    ast_to_nltk_tree(tree, show_factors, show_ignore).draw()
+    ast_to_nltk_tree(tree, factor_keys, show_ignore).draw()
 
-def ast_to_nltk_tree(ast_tree, show_factors = None, show_ignore = False):
+def ast_to_nltk_tree(ast_tree, factor_keys = None, show_ignore = False, ignore_docstring = True):
     """Convert an ast tree to a nltk tree"""
     from nltk import Tree
     parent_name = ast_tree.label
-    if show_factors:
+    if factor_keys:
         parent_name += '|'
-        parent_name += '|'.join(ast_tree.factors[key] for key in show_factors)
+        parent_name += '|'.join(ast_tree.factors[key] for key in factor_keys)
     if show_ignore and ast_tree.ignore:
         parent_name = 'I_' + parent_name
-    return Tree(parent_name, [ast_to_nltk_tree(child, show_factors, show_ignore) for child in ast.iter_child_nodes(ast_tree)])
-    
+    return Tree(parent_name, [ast_to_nltk_tree(child, factor_keys, show_ignore) for child in ast.iter_child_nodes(ast_tree) if not(ignore_docstring and child.gen_docstring)])
+
 def ast_to_qtree(node, add_prefix = True):
     """Convert a tree to tikz-qtree notation."""
     children = list(ast.iter_child_nodes(node))
     if len(children) == 0:
-        print node.label
         return node.label
-    
+
     prefix = ''
     if add_prefix:
         prefix = r'\Tree '
     qtree = '%s[.%s %s ]' % (prefix, node.label, ' '.join(ast_to_qtree(child, False) for child in children))
-    #print qtree
     return qtree
-    
+
 
