@@ -12,52 +12,48 @@ sys.setdefaultencoding('utf-8') # FIXME this is dangerous
 logging.basicConfig(filename='./log.txt', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
 
-def create_parallel_corpus(in_path, out_path, max_count = float('inf')):
-    """For all python files in all zip files, align rules in an AST with its
-    docstring."""
-    if os.path.isdir(in_path):
-        zip_paths = iter_files_with_extension(in_path, '.zip')
-    elif os.path.isfile(in_path):
-        zip_paths = [in_path]
-    else:
-        raise ValueError('invalid path: %s' % in_path)
+def create_parallel_corpus(zip_path, out_path, max_count = float('inf')):
+    """For all python files in the given zip file, create a parallel corpus of 
+    docstring words and source code words."""
+    if not os.path.isfile(zip_path) or os.path.splitext(zip_path)[1] != '.zip':
+        raise ValueError('invalid zip path: %s' % zip_path)
 
     sc_path = out_path + '.sc'
     doc_path = out_path + '.doc'
     info_path = out_path + '.info'
     count = 0
     with open(sc_path, 'w') as sc_out, open(doc_path, 'w') as doc_out, open(info_path, 'w') as info_out:
-        info_out.write('<in_path>%s</in_path>\n' % in_path)
-        for zip_path in zip_paths:
-            with zipfile.ZipFile(zip_path, 'r') as zip_file:
-                for py_path in iter_py_in_zip_file(zip_file):
-                    print py_path
-                    with zip_file.open(py_path, 'r') as py_file:
+        info_out.write('<zip_path>%s</zip_path>\n' % zip_path)
+        with zipfile.ZipFile(zip_path, 'r') as zip_file:
+            for py_path in iter_py_in_zip_file(zip_file):
+                with zip_file.open(py_path, 'r') as py_file:
+                    try:
+                        py_text = py_file.read().strip()
+                        ast_tree = ast.parse(py_text)
+                    except (SyntaxError, ValueError) as e: # could not parse the python file (expect python 2.x)
+                        logging.exception('\nzip_path: %s\npy_path: %s\nError:\n%s\n' % (zip_path, py_path, e))
+                        continue
+                    except:
+                        print 'zip_path: %s' % zip_path
+                        print 'py_path: %s' % py_path
+                        raise
+
+                    tree = ASTPlus(ast_tree)
+
+                    for docstring, source_code_words, tree in tree.parallel_functions():
+                        if count >= max_count:
+                            return
+                        count += 1
+
                         try:
-                            py_text = py_file.read().strip()
-                            ast_tree = ast.parse(py_text)
-                        except (SyntaxError, ValueError) as e: # could not parse the python file (expect python 2.x)
-                            logging.exception('\nError when parsing file: %s\n%s\n' % (py_path, e))
-                            continue
+                            write_info(info_out, tree, count, py_path)
+                            sc_out.write('%s\n' % source_code_words)
+                            doc_out.write('%s\n' % docstring)
                         except:
+                            print 'zip_path: %s' % zip_path
                             print 'py_path: %s' % py_path
+                            print 'lineno: %s' % tree.lineno
                             raise
-
-                        tree = ASTPlus(ast_tree)
-
-                        for docstring, source_code_words, tree in tree.parallel_functions():
-                            if count >= max_count:
-                                return
-                            count += 1
-
-                            try:
-                                write_info(info_out, tree, count, py_path)
-                                sc_out.write('%s\n' % source_code_words)
-                                doc_out.write('%s\n' % docstring)
-                            except:
-                                print 'py_path: %s' % py_path
-                                print 'lineno: %s' % tree.lineno
-                                raise
 
 def write_info(info_out, tree, count, py_path):
     """Write to info_out the following information:
