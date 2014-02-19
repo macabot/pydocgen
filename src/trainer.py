@@ -6,13 +6,14 @@ import sys
 
 from ast_plus import ASTPlus
 import unparse
+import utils
 
 reload(sys)
 sys.setdefaultencoding('utf-8') # FIXME this is dangerous
 logging.basicConfig(filename='./log.txt', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
 
-def create_parallel_corpus(zip_path, out_path, max_count = float('inf')):
+def create_parallel_corpus(zip_path, out_path, use_factors = True, max_count = float('inf')):
     """For all python files in the given zip file, create a parallel corpus of 
     docstring words and source code words."""
     if not os.path.isfile(zip_path) or os.path.splitext(zip_path)[1] != '.zip':
@@ -26,6 +27,8 @@ def create_parallel_corpus(zip_path, out_path, max_count = float('inf')):
         info_out.write('<zip_path>%s</zip_path>\n' % zip_path)
         with zipfile.ZipFile(zip_path, 'r') as zip_file:
             for py_path in iter_py_in_zip_file(zip_file):
+                sys.stdout.write('\r%s' % utils.uniform_string(py_path))
+                sys.stdout.flush()
                 with zip_file.open(py_path, 'r') as py_file:
                     try:
                         py_text = py_file.read().strip()
@@ -40,7 +43,7 @@ def create_parallel_corpus(zip_path, out_path, max_count = float('inf')):
 
                     tree = ASTPlus(ast_tree)
 
-                    for docstring, source_code_words, tree in tree.parallel_functions():
+                    for docstring, source_code_words, tree in tree.parallel_functions(use_factors):
                         if count >= max_count:
                             return
                         count += 1
@@ -54,6 +57,7 @@ def create_parallel_corpus(zip_path, out_path, max_count = float('inf')):
                             print 'py_path: %s' % py_path
                             print 'lineno: %s' % tree.lineno
                             raise
+    print
 
 def write_info(info_out, tree, count, py_path):
     """Write to info_out the following information:
@@ -127,13 +131,7 @@ def test_create_parallel_corpus():
     #path = '../repos'
     #extension = '.zip'
     #paths = iter_files_with_extension(path, extension)
-    names = ['docutils-0.11']#, 'Twisted-13.2.0', 'Zope-master', 'Products.CMFPlone-master',
-    """        'plone.api-master', 'rptlab-pyrxp', 'rptlab-preppy', 'bittorrent',
-             'spambayes-1.1a6', 'wxPython-src-3.0.0.0', 'mailman-3.0.0b3',
-             'plucker-1.8', 'feedparser-5.1.3', 'shtoom-0.2', 'divmod.org-master',
-             'moin-1.9.7', 'PythonCard-0.8.2', 'OpenGLContext-2.2.0a3', 'pytables-3.1.0',
-             'eric5-5.4.1']
-    """
+    names = ['docutils-0.11']
     paths = ['../repos/' + name + '.zip' for name in names]
     for in_path in paths:
         print in_path
@@ -141,8 +139,10 @@ def test_create_parallel_corpus():
         in_root, _ext = os.path.splitext(in_basename)
         out_path = os.path.join('../data/', in_root)
         create_parallel_corpus(in_path, out_path)
+    print 'done'
 
 def main():
+    """main"""
     pass
 
 

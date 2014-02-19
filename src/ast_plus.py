@@ -43,11 +43,13 @@ class ASTPlus(object):
         label_docstring_expr(ast_tree)
         self.tree = ast_tree
 
-    def parallel_functions(self):
+    def parallel_functions(self, use_factors = True):
         """For each function in the tree return a tuple with the words in its
         docstring and the important nodes in it's tree. Ignore functions without
         a docstring."""
-        return parallel_functions(self.tree, self.factor_keys)
+        if use_factors:
+            return parallel_functions(self.tree, self.factor_keys)
+        return parallel_functions(self.tree)
 
     def draw(self, factor_keys = None, show_ignore = False):
         """Convert an ast tree to a nltk tree"""
