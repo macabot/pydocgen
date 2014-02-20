@@ -34,10 +34,11 @@ NEWLINE_SUB = '</NEWLINE>'
 class ASTPlus(object):
     """Add factors to an AST"""
 
-    def __init__(self, ast_tree, split = False):
+    def __init__(self, ast_tree):
         # TODO make trees uniform, e.g. order arguments of Equals alphabetically
         add_parents(ast_tree)
-        add_labels(ast_tree, split)
+        add_labels(ast_tree)
+        add_depths(ast_tree)
         self.factor_keys = add_factors(ast_tree)
         add_ignore_labels(ast_tree)
         label_docstring_expr(ast_tree)
@@ -49,7 +50,7 @@ class ASTPlus(object):
         a docstring."""
         if use_factors:
             return parallel_functions(self.tree, self.factor_keys)
-        return parallel_functions(self.tree)
+        return parallel_functions(self.tree, None)
 
     def draw(self, factor_keys = None, show_ignore = False):
         """Convert an ast tree to a nltk tree"""
@@ -132,30 +133,20 @@ def get_name_map(tree, name_map):
         return str(getattr(tree, name_map[class_name]))
     return class_name
 
-def split_camel_case(name):
-    """ TODO see http://stackoverflow.com/a/1176023/854488"""
-    #return [name.lower()]
-    return [name]
-
-def add_labels(tree, split = False):
+def add_labels(tree):
     """Add labels to all nodes in the tree."""
     tree.label = get_name_map(tree, LABEL_MAP)
-    if split:
-        tree.label = ' '.join(split_label(tree.label))
     for child in ast.iter_child_nodes(tree):
-        add_labels(child, split)
-
-def split_label(label):
-    """Split a label into a list of words that it contains.
-    TODO split camelCase
-    TODO split getters/setters, e.g. 'getsource' >> ['get', 'source']"""
-    if '_' in label:
-        return label.strip('_').split('_')
-    return [label]
+        add_labels(child)
 
 def add_factors(tree, class_def_name = None):
     """Add factors to all nodes in the tree.
-    TODO explain all factors"""
+    
+    ast_name: name of the class of the current AST object
+    parent: label of parent node | None
+    context: Load | Store | Del | AugLoad | AugStore | Param | None
+    class: class name of method | None
+    depth: depth of node"""
     class_name = tree.__class__.__name__
     if class_name == 'ClassDef':
         class_def_name = class_name
@@ -165,11 +156,12 @@ def add_factors(tree, class_def_name = None):
     context = getattr(tree, 'ctx', None)
     tree.factors['context'] = str(getattr(context, 'label', context))
     tree.factors['class'] = str(class_def_name)
+    tree.factors['depth'] = str(tree.depth)
 
     for child in ast.iter_child_nodes(tree):
         add_factors(child, class_def_name)
 
-    return ['ast_name', 'parent', 'context', 'class']
+    return ['ast_name', 'parent', 'context', 'class', 'depth']
 
 def root(tree):
     """Return the root of a tree."""
@@ -183,11 +175,23 @@ def add_parents(tree, parent = None):
     for child in ast.iter_child_nodes(tree):
         add_parents(child, tree)
 
+def add_depths(tree, depth = None):
+    """Add the attribute depth to the tree. The root has depth 0, it's children
+    have depth 1, etc."""
+    if tree.__class__.__name__ == 'FunctionDef':
+        depth = 0
+    tree.depth = depth
+    if depth != None:
+        depth += 1
+    for child in ast.iter_child_nodes(tree):
+        add_depths(child, depth)
+
 def draw(tree, factor_keys = None, show_ignore = False):
     """Convert the tree to a nltk tree and draw it."""
     ast_to_nltk_tree(tree, factor_keys, show_ignore).draw()
 
-def ast_to_nltk_tree(ast_tree, factor_keys = None, show_ignore = False, ignore_docstring = True):
+def ast_to_nltk_tree(ast_tree, factor_keys = None, show_ignore = False, 
+                     ignore_docstring = True):
     """Convert an ast tree to a nltk tree"""
     from nltk import Tree
     parent_name = ast_tree.label
@@ -196,7 +200,9 @@ def ast_to_nltk_tree(ast_tree, factor_keys = None, show_ignore = False, ignore_d
         parent_name += '|'.join(ast_tree.factors[key] for key in factor_keys)
     if show_ignore and ast_tree.ignore:
         parent_name = 'I_' + parent_name
-    return Tree(parent_name, [ast_to_nltk_tree(child, factor_keys, show_ignore) for child in ast.iter_child_nodes(ast_tree) if not(ignore_docstring and child.gen_docstring)])
+    return Tree(parent_name, [ast_to_nltk_tree(child, factor_keys, show_ignore)
+                              for child in ast.iter_child_nodes(ast_tree) 
+                              if not(ignore_docstring and child.gen_docstring)])
 
 def ast_to_qtree(node, add_prefix = True):
     """Convert a tree to tikz-qtree notation."""
