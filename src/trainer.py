@@ -34,7 +34,7 @@ def create_parallel_corpus(zip_path, out_path, use_factors = True, max_count = f
     with open(sc_path, 'w') as sc_out, open(doc_path, 'w') as doc_out, open(info_path, 'w') as info_out:
         info_out.write('<zip_path>%s</zip_path>\n' % zip_path)
         with zipfile.ZipFile(zip_path, 'r') as zip_file:
-            for py_path in iter_py_in_zip_file(zip_file):
+            for py_path in utils.iter_zipfiles_with_extension(zip_file, '.py'):
                 sys.stdout.write('\r%s' % utils.uniform_string(py_path, progress_chars))
                 sys.stdout.flush()
                 with zip_file.open(py_path, 'r') as py_file:
@@ -81,21 +81,6 @@ def write_info(info_out, tree, count, py_path):
     info_out.write('</code>\n')
     info_out.write('</count:%d>\n' % count)
 
-def iter_files_with_extension(path, extension):
-    """Yield all files in a path with the given extension."""
-    for root, _dirs, files in os.walk(path):
-        for name in files:
-            _root, ext = os.path.splitext(name)
-            if ext == extension:
-                yield os.path.join(root, name)
-
-def iter_py_in_zip_file(zip_file): # TODO cache python paths
-    """Find python files in zip."""
-    for path in zip_file.namelist():
-        _root, extension = os.path.splitext(path)
-        if extension == '.py':
-            yield path
-
 def docs_in_tree(tree, doc_names = None, docs = None):
     """Get all docstrings in a tree. Doc_names specifies the classes that could
     contain docstrings. By default these are: 'FunctionDef', 'ClassDef' and
@@ -137,9 +122,6 @@ def binarize(rule):
 
 def test_create_parallel_corpus():
     """Create a parallel corpus of packages."""
-    #path = '../repos'
-    #extension = '.zip'
-    #paths = iter_files_with_extension(path, extension)
     names = ['docutils-0.11']
     paths = ['../repos/' + name + '.zip' for name in names]
     for in_path in paths:
@@ -167,7 +149,7 @@ def main():
     if not os.path.isdir(output_path):
         raise ValueError('Invalid output folder: %s' % output_path)
 
-    for zip_path in iter_files_with_extension(input_path, '.zip'):
+    for zip_path in utils.iter_files_with_extension(input_path, '.zip'):
         print zip_path
         in_basename = os.path.basename(zip_path)
         in_root, _ext = os.path.splitext(in_basename)
@@ -177,7 +159,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    #main()
     #test_zipf()
     #test_extract_rules_from_zip()
-    #test_create_parallel_corpus()
+    test_create_parallel_corpus()
