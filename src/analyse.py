@@ -1,9 +1,15 @@
+"""
+By Michael Cabot
+
+Functions for analysing data.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import Counter
 import os
 
-import trainer
+import utils
 
 def word_ratios(path_a, path_b):
     """For each line in file A and B calculate the ratio of words."""
@@ -18,6 +24,7 @@ def word_ratios(path_a, path_b):
     return ratios
 
 def test_average_ratio():
+    """test word_ratios"""
     ratios = word_ratios('../data/nltk-develop.doc', '../data/nltk-develop.sc')
     print 'mean: %s' % np.mean(ratios)
     print 'deviation: %s' % np.std(ratios)
@@ -51,17 +58,17 @@ def test_plot_zipf():
 def count_lines_with_extension(path, extension):
     """Count the number of lines of all files in the given path with the given
     extension"""
-    return sum(number_of_lines(p) for p in trainer.iter_files_with_extension(path, extension))
+    return sum(number_of_lines(p) for p in utils.iter_files_with_extension(path, extension))
 
 def num_lines_with_extension(path, extension):
-    """Return a generator of tuples of the number of lines in a file and that 
+    """Return a generator of tuples of the number of lines in a file and that
     file, given that the file has a certain extension"""
-    return ((number_of_lines(p), p) for p in trainer.iter_files_with_extension(path, extension))
+    return ((number_of_lines(p), p) for p in utils.iter_files_with_extension(path, extension))
 
 def number_of_lines(path):
     """Count the number of lines in a file"""
-    with open(path, 'r') as file:
-        return sum(1 for _line in file)
+    with open(path, 'r') as in_file:
+        return sum(1 for _line in in_file)
 
 def test_count_lines_with_extension():
     """Test count_lines_with_extension"""
@@ -76,7 +83,7 @@ def test_num_lines_with_extension():
     print 'total: %s' % total
 
 def parallel_length_map(sc_path, doc_path):
-    """For each parallel line in sc and doc count the number of words. 
+    """For each parallel line in sc and doc count the number of words.
     length_map maps the source code length to all encountered doc lengths"""
     length_map = {}
     with open(sc_path, 'r') as sc, open(doc_path, 'r') as doc:
@@ -88,7 +95,7 @@ def parallel_length_map(sc_path, doc_path):
             else:
                 length_map[sc_length] = [doc_length]
     return length_map
-    
+
 def merge_length_maps(length_maps):
     """Merge length maps"""
     merged_map = {}
@@ -99,7 +106,7 @@ def merge_length_maps(length_maps):
             else:
                 merged_map[sc_length] = doc_length_values
     return merged_map
-    
+
 def plot_length_map(length_map):
     """Calculate the means and standard deviations of all doc length vaules and
     plot them with an errorbar."""
@@ -112,15 +119,53 @@ def plot_length_map(length_map):
     plt.errorbar(sc_lengths, doc_means, doc_stds, marker='o', linestyle='')
     plt.plot(sc_lengths, doc_len, 'ro')
     plt.show()
-    
+
 def test_plot_length_map():
     """Test plot_length_map"""
     path = '../data'
-    paths = ((sc_path, sc_path[:-3] + '.doc') for sc_path in trainer.iter_files_with_extension(path, '.sc'))
+    paths = ((sc_path, sc_path[:-3] + '.doc') for sc_path in utils.iter_files_with_extension(path, '.sc'))
     length_maps = (parallel_length_map(sc_path, doc_path) for sc_path, doc_path in paths)
     merged_map = merge_length_maps(length_maps)
-    
+
     plot_length_map(merged_map)
+
+def count_all_methods_and_functions(path):
+    """Read all .sc filder in the given folder and count the number of methods
+    and functions."""
+    if os.path.isfile(path):
+        assert os.path.splitext(path)[1] == '.sc', 'invalid source code file: %s' % path
+        sc_paths = [path]
+    elif os.path.isdir(path):
+        print 'not yet implemented' # TODO
+    else:
+        raise ValueError('invalid path: %s' % path)
+
+    sum_methods = 0
+    sum_functions = 0
+    for path in sc_paths:
+        methods, functions = count_methods_and_functions(path)
+        sum_methods += methods
+        sum_functions += functions
+    return sum_methods, sum_functions
+
+def count_methods_and_functions(path):
+    """Count the number of methods and functions in a file. Methods belong to a
+    class."""
+    methods = 0
+    functions = 0
+    with open(path, 'r') as sc_file:
+        for line in sc_file:
+            if line.split()[0].split('|')[4] == 'None':
+                methods += 1
+            else:
+                functions += 1
+    return methods, functions
+
+def test_count_methods_and_functions():
+    """test count(_all)_methods_and_functions"""
+    path = '../data/docstring-all_sourcecode-all-factors/Python27-Lib.sc'
+    print count_methods_and_functions(path)
+    print count_all_methods_and_functions(path)
 
 
 if __name__ == '__main__':
@@ -128,4 +173,5 @@ if __name__ == '__main__':
     #test_plot_zipf()
     #test_count_lines_with_extension()
     #test_num_lines_with_extension()
-    test_plot_length_map()
+    #test_plot_length_map()
+    test_count_methods_and_functions()
