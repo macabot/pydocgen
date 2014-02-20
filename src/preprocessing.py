@@ -84,6 +84,8 @@ def preprocess(in_path, out_folder, keep_factors, filters):
 
             sc_words = process_source_code(sc_words, keep_factors)
             docstring = process_docstring(docstring, filters)
+            if docstring == '':
+                continue
 
             sc_out.write('%s\n' % ' '.join(sc_words))
             doc_out.write('%s\n' % docstring)
