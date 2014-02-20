@@ -146,7 +146,7 @@ def test_create_parallel_corpus():
         print in_path
         in_basename = os.path.basename(in_path)
         in_root, _ext = os.path.splitext(in_basename)
-        out_path = os.path.join('../data/', in_root)
+        out_path = os.path.join('../data/docstring-all_sourcecode-all-factors/', in_root)
         create_parallel_corpus(in_path, out_path)
     print 'done'
 
