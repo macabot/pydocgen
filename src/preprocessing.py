@@ -5,9 +5,11 @@ Preprocess a parallel corpus before passing it to a SMT framework, such as Moses
 """
 import os
 import re
+import argparse
 
 from ast_plus import NEWLINE_SUB
 import docfilters
+import utils
 
 def split_camel_case(name):
     """source: http://stackoverflow.com/a/1176023/854488
@@ -44,7 +46,7 @@ def tokenize_words(sc_words):
 
 def remove_factors(sc_words):
     """Remove all factors: label|factor1|...|factorN -> label"""
-    return (word.split('|', 1)[0] for word in sc_words)
+    return [word.split('|', 1)[0] for word in sc_words]
 
 def process_source_code(sc_words, keep_factors):
     """Remove useless words, tokenize (remove factors)"""
@@ -84,7 +86,7 @@ def preprocess(in_path, out_folder, keep_factors, filters):
 
             sc_words = process_source_code(sc_words, keep_factors)
             docstring = process_docstring(docstring, filters)
-            if docstring == '':
+            if docstring == '' or len(docstring.split()) > 100 or len(sc_words) > 100:
                 continue
 
             sc_out.write('%s\n' % ' '.join(sc_words))
@@ -99,6 +101,37 @@ def test_preprocess():
                docfilters.keep_first_description]
     preprocess(in_path, out_folder, keep_factors, filters)
 
+def main():
+    """Read command line arguments for preprocessing a parallel corpus."""
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('-i', '--input_path', required=True,
+        help='Path to folder containing python projects as zip-files')
+    arg_parser.add_argument('-o', '--output_path', required=True,
+        help='Path of folder for output.')
+    arg_parser.add_argument('-f', '--keep_factors', action='store_true',
+        default = False, help='Keep the factors')
+
+    args = arg_parser.parse_args()
+
+    input_path = args.input_path
+    if not os.path.isdir(input_path):
+        raise ValueError('Invalid input folder: %s' % input_path)
+    output_path = args.output_path
+    if not os.path.isdir(output_path):
+        raise ValueError('Invalid output folder: %s' % output_path)
+    keep_factors = args.keep_factors
+
+    filters = [docfilters.remove_doctests,
+               docfilters.keep_first_description,
+               docfilters.remove_wx_wrappers]
+
+    for sc_path in utils.iter_files_with_extension(input_path, '.sc'):
+        in_root, _ext = os.path.splitext(sc_path)
+        print in_root
+        preprocess(in_root, output_path, keep_factors, filters)
+    print 'done'
+
 
 if __name__ == '__main__':
-    test_preprocess()
+    main()
+    #test_preprocess()

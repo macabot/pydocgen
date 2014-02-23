@@ -122,7 +122,7 @@ def plot_length_map(length_map):
 
 def test_plot_length_map():
     """Test plot_length_map"""
-    path = '../data'
+    path = '../data/docstring-filtered_sourcecode-NOcontext-NOfactors'
     paths = ((sc_path, sc_path[:-3] + '.doc') for sc_path in utils.iter_files_with_extension(path, '.sc'))
     length_maps = (parallel_length_map(sc_path, doc_path) for sc_path, doc_path in paths)
     merged_map = merge_length_maps(length_maps)
@@ -173,5 +173,5 @@ if __name__ == '__main__':
     #test_plot_zipf()
     #test_count_lines_with_extension()
     #test_num_lines_with_extension()
-    #test_plot_length_map()
-    test_count_methods_and_functions()
+    test_plot_length_map()
+    #test_count_methods_and_functions()
