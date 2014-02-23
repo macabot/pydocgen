@@ -105,7 +105,7 @@ def main():
     """Read command line arguments for preprocessing a parallel corpus."""
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-i', '--input_path', required=True,
-        help='Path to folder containing python projects as zip-files')
+        help='Path to folder containing parallel corpora')
     arg_parser.add_argument('-o', '--output_path', required=True,
         help='Path of folder for output.')
     arg_parser.add_argument('-f', '--keep_factors', action='store_true',
