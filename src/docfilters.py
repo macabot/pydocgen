@@ -33,24 +33,12 @@ def test_remove_doctests():
     """
     print remove_doctests(docstring)
 
-def remove_parameter_descriptions(docstring):
-    """Remove parameter descriptions that start with a colon.
-    E.g. ':type list sequence"""
-    # TODO test
-    lines = docstring.split('\n')
-    good_lines = []
-    for line in lines:
-        stripped_line = line.strip()
-        if not (len(stripped_line) > 0 and stripped_line[0] == ':'):
-            good_lines.append(line)
-    return '\n'.join(good_lines)
-
 def remove_wx_wrappers(docstring):
     """Remove docstrings that are wrappers. Examples:
     IsOk(self) -> bool
     Focus(self, long index)
     """
-    if re.search(r'\S+\(.*\)', docstring.strip()):
+    if re.search(r'\S+\(.*\)', docstring.strip(), flags=re.DOTALL):
         return ''
     return docstring
 
@@ -59,6 +47,9 @@ def test_remove_wx_wrappers():
     assert remove_wx_wrappers("""IsOk(self) -> bool""")==''
     assert remove_wx_wrappers("""Focus(self, long index)""")==''
     assert remove_wx_wrappers("""Focus(self, long index""")!=''
+    text = """__init__(self, window parent, auimanager ownermgr, auipaneinfo pane, int id=id_any, 
+    long style=wxresize_border|wxsystem_menu|wxcaption|wxframe_no_taskbar|wxframe_float_on_parent|wxclip_children) -> auifloatingframe"""
+    assert remove_wx_wrappers(text)==''
 
 def keep_first_description(docstring):
     """Remove everything after an empty line"""
@@ -77,9 +68,26 @@ def test_keep_first_description():
     """
     print keep_first_description(docstring)
     print keep_first_description("""foo""")
+    
+def replace_vertical_bars(docstring):
+    return re.sub(r'\|', 'BAR', docstring)
+    
+def test_replace_vertical_bars():
+    assert replace_vertical_bars('implementation of | operator - returns matchfirst') == 'implementation of BAR operator - returns matchfirst'
+    
+def remove_parameter_descriptions(docstring):
+    return re.sub(r':param \w+:.*', '', docstring)
+    
+def test_remove_parameter_descriptions():
+    docstring = """specify the message data for topic messages. 
+    :param argsdocs: a dictionary of keyword names (message data name) and data 'docstring'; cannot be none 
+    :param required: a list of those keyword names, appearing in argsdocs, which are required (all others are assumed optional)"""
+    assert remove_parameter_descriptions(docstring).strip() == 'specify the message data for topic messages.'
 
 
 if __name__ == '__main__':
     #test_remove_doctests()
     #test_remove_wx_wrappers()
-    test_keep_first_description()
+    #test_keep_first_description()
+    #test_replace_vertical_bars()
+    test_remove_parameter_descriptions()
