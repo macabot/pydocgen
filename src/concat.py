@@ -48,7 +48,7 @@ def main():
     if not os.path.isdir(output_folder):
         raise ValueError('Invalid output folder: %s' % output_folder)
     if output_name.strip() == '':
-        raise ValueError('Invalid output name: %s' % output_name)
+        raise ValueError('Empty output name')
 
     concat_corpus(input_path, output_path)
 
