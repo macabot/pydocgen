@@ -22,7 +22,11 @@ def split_camel_case(name):
 
 def split_underscore(word):
     """Split a word into a list of words that it contains."""
-    return word.strip('_').lower().split('_')
+    word_stripped = word.strip('_')
+    if word_stripped == '':
+        return ['_']
+    word_stripped = re.sub(r'_+', '_', word_stripped)
+    return word_stripped.lower().split('_')
 
 def remove_context(sc_words):
     """Remove words with ast_class equal to Load, Param or Store"""
