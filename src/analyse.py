@@ -55,29 +55,14 @@ def test_plot_zipf():
 
         plot_zipf(freqs)
 
-def count_lines_with_extension(path, extension):
-    """Count the number of lines of all files in the given path with the given
-    extension"""
-    return sum(number_of_lines(p) for p in utils.iter_files_with_extension(path, extension))
-
-def num_lines_with_extension(path, extension):
-    """Return a generator of tuples of the number of lines in a file and that
-    file, given that the file has a certain extension"""
-    return ((number_of_lines(p), p) for p in utils.iter_files_with_extension(path, extension))
-
-def number_of_lines(path):
-    """Count the number of lines in a file"""
-    with open(path, 'r') as in_file:
-        return sum(1 for _line in in_file)
-
 def test_count_lines_with_extension():
     """Test count_lines_with_extension"""
-    print count_lines_with_extension('../data', '.doc')
+    print utils.count_lines_with_extension('../data', '.doc')
 
 def test_num_lines_with_extension():
     """Test num_lines_with_extension"""
     total = 0
-    for num_lines, path in num_lines_with_extension('../data', '.doc'):
+    for num_lines, path in utils.num_lines_with_extension('../data', '.doc'):
         print '%s: %s' % (path, num_lines)
         total += num_lines
     print 'total: %s' % total
