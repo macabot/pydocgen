@@ -102,7 +102,9 @@ def test_preprocess():
     out_folder = '../data/docstring-filtered_sourcecode-NOcontext-NOfactors'
     keep_factors = False
     filters = [docfilters.remove_doctests,
-               docfilters.keep_first_description]
+               docfilters.keep_first_description,
+               docfilters.remove_parameter_descriptions,
+               docfilters.replace_vertical_bars]
     preprocess(in_path, out_folder, keep_factors, filters)
 
 def main():
@@ -127,7 +129,9 @@ def main():
 
     filters = [docfilters.remove_doctests,
                docfilters.keep_first_description,
-               docfilters.remove_wx_wrappers]
+               docfilters.remove_wx_wrappers,
+               docfilters.remove_parameter_descriptions,
+               docfilters.replace_vertical_bars]
 
     for sc_path in utils.iter_files_with_extension(input_path, '.sc'):
         in_root, _ext = os.path.splitext(sc_path)
