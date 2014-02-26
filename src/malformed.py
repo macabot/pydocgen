@@ -13,7 +13,6 @@ def remove_malformed_characters(in_path, out_path):
     with codecs.open(in_path, 'r', encoding='utf-8', errors='ignore') as in_file, codecs.open(out_path, 'w', encoding='utf-8') as out:
         for line in in_file:
             try:
-                #line.encode('utf-8', 'ignore')
                 out.write(line)
             except:
                 print 'line: %d' % (i+1)
