@@ -167,12 +167,21 @@ def extract_phrase_pair_freqs(alignments_file, source_file,
         if i == max_lines:
             break
 
+        # read files
         source_words = source.next().strip().split()
         target_words = target.next().strip().split()
         source_length = len(source_words)
         target_length = len(target_words)
 
         align = str_to_alignments(str_align)
+        # word pair frequencies
+        for source_index, target_index in align:
+            word_pair = (source_words[source_index], target_words[target_index])
+            lex_pair_freqs[word_pair] += 1
+            source_lex_freqs[word_pair[0]] += 1
+            target_lex_freqs[word_pair[1]] += 1
+        
+        
         phrase_to_internal = extract_alignments(set(align), source_length,
                                                 target_length, max_length)
 
@@ -184,11 +193,7 @@ def extract_phrase_pair_freqs(alignments_file, source_file,
             phrase_pair_freqs[phrase_pair] += 1
             source_phrase_freqs[phrase_pair[0]] += 1
             target_phrase_freqs[phrase_pair[1]] += 1
-            # word pair frequencies
-            if len(phrase_pair[0].split()) == len(phrase_pair[1].split()) == 1:
-                lex_pair_freqs[phrase_pair] += 1
-                source_lex_freqs[phrase_pair[0]] += 1
-                target_lex_freqs[phrase_pair[1]] += 1
+            
             # phrase pair to possible internal word alignments
             if phrase_pair in phrase_to_internals:
                 phrase_to_internals[phrase_pair].add(frozenset(internal_alignment))
@@ -343,6 +348,7 @@ def lexical_weights(phrase_to_internals,
         target_given_source[phrase_pair] = weight_target_given_source
 
     show_progress(num_phrases, num_phrases, 40, 'LEXICAL WEIGHTS')
+    sys.stdout.write('\n')
 
     return source_given_target, target_given_source
 
