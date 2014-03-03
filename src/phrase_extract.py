@@ -693,20 +693,19 @@ def all_phrase_info_to_file(outputfile,
                             source_phrase_freqs,
                             target_phrase_freqs,
                             phrase_pair_freqs):
-    out = open(outputfile + '_all_info.txt', 'w')
-    for phrase_pair in phrase_pair_freqs:
-        out.write('{f} ||| {e} ||| {pfe} {pef} {lfe} {lef} ||| {freqf} {freqe} {freqfe}\n'.format(
-            f=phrase_pair[0], e=phrase_pair[1],
-            pfe=phrase_source_given_target[phrase_pair],
-            pef=phrase_target_given_source[phrase_pair],
-            lfe=lex_weight_source_given_target[phrase_pair],
-            lef=lex_weight_target_given_source[phrase_pair],
-            freqf=source_phrase_freqs[phrase_pair[0]],
-            freqe=target_phrase_freqs[phrase_pair[1]],
-            freqfe=phrase_pair_freqs[phrase_pair]))
+    with open(outputfile + '_all_info.txt', 'w') as out:
+        for phrase_pair in phrase_pair_freqs:
+            out.write('{f} ||| {e} ||| {pfe} {pef} {lfe} {lef} ||| {freqf} {freqe} {freqfe}\n'.format(
+                f=phrase_pair[0], e=phrase_pair[1],
+                pfe=phrase_source_given_target[phrase_pair],
+                pef=phrase_target_given_source[phrase_pair],
+                lfe=lex_weight_source_given_target[phrase_pair],
+                lef=lex_weight_target_given_source[phrase_pair],
+                freqf=source_phrase_freqs[phrase_pair[0]],
+                freqe=target_phrase_freqs[phrase_pair[1]],
+                freqfe=phrase_pair_freqs[phrase_pair]))
 
-    _log("Saved phrase info to '{}_all_info.txt'".format(outputfile))
-    out.close()
+        sys.stdout.write("Saved phrase info to: %s\n" % out.name)
 
 def load_phrases_from_file(name):
     _log('Trying to load data from file ' + name + '.txt')
@@ -899,7 +898,7 @@ def do_the_work(alignments, source, target, outputfile, max_lines, max_length, p
                                   target_lex_freqs,
                                   label='LEXICAL PROBABILITIES',
                                   logprob=True)
-
+    
     # Calculating lexical weights l(f|e) and l(e|f)
     lex_weight_source_given_target, lex_weight_target_given_source = \
         lexical_weights(phrase_to_internals, lex_source_given_target,
