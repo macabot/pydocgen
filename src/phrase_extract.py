@@ -1,5 +1,5 @@
 import argparse
-from collections import Counter
+from collections import defaultdict
 import mp_worker
 import sys
 import math
@@ -133,21 +133,21 @@ def extract_phrase_pair_freqs(alignments_file, source_file,
     max_length -- maximum length of phrase pairs
     sentence_1s -- file containing weights for each sentence pair
 
-    Returns counter of phrase-pairs, counter of phrases in source
-            and counter of phrases in target
+    Returns counts of phrase-pairs, counts of phrases in source
+            and counts of phrases in target
     """
 
 
 
     # phrase frequencies
-    phrase_pair_freqs = Counter()
-    source_phrase_freqs = Counter()
-    target_phrase_freqs = Counter()
+    phrase_pair_freqs = defaultdict(int)
+    source_phrase_freqs = defaultdict(int)
+    target_phrase_freqs = defaultdict(int)
 
     # lexical frequencies
-    lex_pair_freqs = Counter()
-    source_lex_freqs = Counter()
-    target_lex_freqs = Counter()
+    lex_pair_freqs = defaultdict(int)
+    source_lex_freqs = defaultdict(int)
+    target_lex_freqs = defaultdict(int)
 
     # map phrase pair to possible internal word alignments
     phrase_to_internals = {}
@@ -224,9 +224,9 @@ def conditional_probabilities(phrase_pair_freqs, source_phrase_freqs,
     """Calculate conditional probability of phrase pairs in both directions.
 
     Input:
-    phrase_pair_freqs -- counter of phrase pairs
-    source_phrase_freqs -- counter of phrases in language 1
-    target_phraes_freqs -- counter of phrases in lanuage 2
+    phrase_pair_freqs -- counts of phrase pairs
+    source_phrase_freqs -- counts of phrases in language 1
+    target_phraes_freqs -- counts of phrases in lanuage 2
     label -- used to indicate current process
     logprob -- boolean, if true, probabilities are used in log-form
 
@@ -914,7 +914,6 @@ def do_the_work(alignments, source, target, outputfile, max_lines, max_length, p
                              phrase_target_given_source,
                              lex_weight_source_given_target,
                              lex_weight_target_given_source)
-    sys.stdout.write('\n')
 
     all_phrase_info_to_file(outputfile,
                             phrase_source_given_target,
@@ -924,13 +923,12 @@ def do_the_work(alignments, source, target, outputfile, max_lines, max_length, p
                             source_phrase_freqs,
                             target_phrase_freqs,
                             phrase_pair_freqs)
-    sys.stdout.write('\n')
 
     all_data = (phrase_source_given_target, phrase_target_given_source,
         lex_weight_source_given_target, lex_weight_target_given_source,
         source_phrase_freqs, target_phrase_freqs, phrase_pair_freqs)
 
-    _log('Done.')
+    sys.stdout.write('Done.\n')
     return all_data
 
 if __name__ == '__main__':
