@@ -120,8 +120,7 @@ def update_count(left_phrase_range, right_phrase_range, reordering_counts,
     reordering_counts[r_phrase_pair][reordering+4] += 1
 
 def extract_phrase_pair_freqs(alignments_file, source_file,
-                              target_file, outputfile,
-                              max_length,
+                              target_file, max_length,
                               max_lines=None):
     """Extract and count the frequency of all phrase pairs given an
     alignment between sentences.
@@ -131,10 +130,19 @@ def extract_phrase_pair_freqs(alignments_file, source_file,
     source_file -- file containing sentences from language 1
     target_file -- file containing sentences from language 2
     max_length -- maximum length of phrase pairs
-    sentence_1s -- file containing weights for each sentence pair
+    max_lines -- maximum number of lines to use for phrase pair extraction
 
     Returns counts of phrase-pairs, counts of phrases in source
             and counts of phrases in target
+    ((phrase_pair_freqs, source_phrase_freqs, target_phrase_freqs),
+            (lex_pair_freqs, source_lex_freqs, target_lex_freqs),
+            phrase_to_internals)
+    Returns (3-tuple):
+        phrase pair frequencies (3-tuple):
+            pair frequencies, source frequencies, target frequencies
+        lexical (word pair) frequencies (3-tuple):
+            pair frequencies, source frequencies, target frequencies
+        internal alignments for phrase pairs
     """
 
 
@@ -150,7 +158,7 @@ def extract_phrase_pair_freqs(alignments_file, source_file,
     target_lex_freqs = defaultdict(int)
 
     # map phrase pair to possible internal word alignments
-    phrase_to_internals = {}
+    phrase_to_internals = defaultdict(set)
 
     # open files
     num_lines = sum(1 for line in open(alignments_file))
@@ -195,10 +203,7 @@ def extract_phrase_pair_freqs(alignments_file, source_file,
             target_phrase_freqs[phrase_pair[1]] += 1
             
             # phrase pair to possible internal word alignments
-            if phrase_pair in phrase_to_internals:
-                phrase_to_internals[phrase_pair].add(frozenset(internal_alignment))
-            else:
-                phrase_to_internals[phrase_pair] = set([frozenset(internal_alignment)])
+            phrase_to_internals[phrase_pair].add(frozenset(internal_alignment))
 
         unaligned, unaligned2 = unaligned_words(align, source_length, target_length)
         unaligned.extend(unaligned2)
@@ -877,7 +882,7 @@ def do_the_work(alignments, source, target, outputfile, max_lines, max_length, p
     if processes <= 1:
         phrase_freqs, lex_freqs, phrase_to_internals = \
             extract_phrase_pair_freqs(alignments, source, target,
-                                      outputfile, max_length, max_lines)
+                                      max_length, max_lines)
     else:        
         phrase_freqs, lex_freqs, phrase_to_internals = \
             mp_worker.set_up_workers(alignments, source, target,
