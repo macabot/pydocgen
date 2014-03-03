@@ -5,6 +5,23 @@ Useful tools.
 """
 
 import os
+import sys
+
+def show_progress(i, num_lines, len_bar, text):
+    """Print progress bar
+
+    First creates a bar, the shows it with percentage and everything, centering
+    the phrase
+    """
+    progressbar = '=' * len_bar
+    len_text = len(text)
+    index_text = int(len_bar * 0.5) - int(len_text * 0.5)
+    progressbar = progressbar[:index_text] + ' ' + text + ' ' + \
+                  progressbar[index_text + len_text + 2:]
+    sys.stdout.write('\r[{} {}% ]'.\
+            format(progressbar[:int(i * len_bar / num_lines)],
+                   i * 100 / num_lines))
+    sys.stdout.flush()
 
 def uniform_string(string, max_chars = 60, prefix = '...'):
     """Make a string of the required length by adding white space or by
@@ -37,12 +54,14 @@ def iter_zipfiles_with_extension(zip_file, extension):
 def count_lines_with_extension(path, extension):
     """Count the number of lines of all files in the given path with the given
     extension"""
-    return sum(number_of_lines(p) for p in utils.iter_files_with_extension(path, extension))
+    return sum(number_of_lines(p) 
+               for p in iter_files_with_extension(path, extension))
 
 def num_lines_with_extension(path, extension):
     """Return a generator of tuples of the number of lines in a file and that
     file, given that the file has a certain extension"""
-    return ((number_of_lines(p), p) for p in utils.iter_files_with_extension(path, extension))
+    return ((number_of_lines(p), p) 
+            for p in iter_files_with_extension(path, extension))
 
 def number_of_lines(path):
     """Count the number of lines in a file"""
