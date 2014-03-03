@@ -188,8 +188,8 @@ def extract_phrase_pair_freqs(alignments_file, source_file,
             lex_pair_freqs[word_pair] += 1
             source_lex_freqs[word_pair[0]] += 1
             target_lex_freqs[word_pair[1]] += 1
-        
-        
+
+
         phrase_to_internal = extract_alignments(set(align), source_length,
                                                 target_length, max_length)
 
@@ -201,7 +201,7 @@ def extract_phrase_pair_freqs(alignments_file, source_file,
             phrase_pair_freqs[phrase_pair] += 1
             source_phrase_freqs[phrase_pair[0]] += 1
             target_phrase_freqs[phrase_pair[1]] += 1
-            
+
             # phrase pair to possible internal word alignments
             phrase_to_internals[phrase_pair].add(frozenset(internal_alignment))
 
@@ -801,13 +801,13 @@ def main():
         help="File containing sentences of target language")
     arg_parser.add_argument("-o", "--output", required=True,
         help="Output filename")
-    arg_parser.add_argument("-ml", "--max_lines", type=int, 
+    arg_parser.add_argument("-ml", "--max_lines", type=int,
         default=float('inf'), help="Maximum number of lines to parse")
-    arg_parser.add_argument("-mp", "--max_phrase_length", type=int, 
+    arg_parser.add_argument("-mp", "--max_phrase_length", type=int,
         default=float('inf'), help="Maximum phrase pair length")
     arg_parser.add_argument('-pr', '--processes', type=int, default=1,
         help="Number of processes to use, default 1 (single process)")
-    arg_parser.add_argument('-r', '--calc_reordering', action='store_true', 
+    arg_parser.add_argument('-r', '--calc_reordering', action='store_true',
         default = False, help='If true: calculate reordering probabilities. \
         Else calculate conditional probabilities.')
     args = arg_parser.parse_args()
@@ -878,12 +878,12 @@ def do_the_work(alignments, source, target, outputfile, max_lines, max_length, p
          '\nMax lines: ', max_lines, '\nMax length: ', max_length,
          '\nProcesses:', processes, '\n')
 
-    
+
     if processes <= 1:
         phrase_freqs, lex_freqs, phrase_to_internals = \
             extract_phrase_pair_freqs(alignments, source, target,
                                       max_length, max_lines)
-    else:        
+    else:
         phrase_freqs, lex_freqs, phrase_to_internals = \
             mp_worker.set_up_workers(alignments, source, target,
                                      outputfile, max_length,
@@ -909,7 +909,7 @@ def do_the_work(alignments, source, target, outputfile, max_lines, max_length, p
                                   target_lex_freqs,
                                   label='LEXICAL PROBABILITIES',
                                   logprob=True)
-    
+
     # Calculating lexical weights l(f|e) and l(e|f)
     lex_weight_source_given_target, lex_weight_target_given_source = \
         lexical_weights(phrase_to_internals, lex_source_given_target,
