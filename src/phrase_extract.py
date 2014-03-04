@@ -164,7 +164,7 @@ def extract_phrase_pair_freqs(alignments_file, source_file,
     num_lines = sum(1 for line in open(alignments_file))
     if max_lines == float('inf'):
         max_lines = num_lines
-    else:   
+    else:
         max_lines = int(max_lines)
 
     alignments = open(alignments_file, 'r')
@@ -651,53 +651,32 @@ def sum_logs(log_list):
     log_list.append(new_log)
     return sum_logs(log_list)
 
-def write_phrases_to_file(filename, phrase_pair_freqs, source_phrase_freqs,
-                  target_phrase_freqs):
+def freqs_to_file(filename, pair_freqs, source_freqs, target_freqs):
     """
     Write to given file in the following format
     f ||| e ||| freq(f) freq(e) freq(f,e)
     """
-    with open(filename + '_extracted_phrases.txt', 'w') as outputfile:
-        for (source_phrase, target_phrase), freq in phrase_pair_freqs.iteritems():
-            outputfile.write("{f} ||| {e} ||| {ff} {fe} {ffe}\n".format(
-                f=source_phrase, e=target_phrase,
-                ff=source_phrase_freqs[source_phrase],
-                fe=target_phrase_freqs[target_phrase],
+    with open(filename, 'w') as out:
+        for (source, target), freq in pair_freqs.iteritems():
+            out.write("{f} ||| {e} ||| {ff} {fe} {ffe}\n".format(
+                f=source, e=target,
+                ff=source_freqs[source],
+                fe=target_freqs[target],
                 ffe=freq))
-        sys.stdout.write('Saved to file: %s\n' % outputfile.name)
+        sys.stdout.write('Saved to file: %s\n' % out.name)
 
-def write_translationprobs_to_file(filename, source_given_target,
-                                   target_given_source):
+def probs_to_file(filename, source_given_target, target_given_source):
     """
     Write to given file in the following format:
     f ||| e ||| p(f|e) p(e|f)
     """
-    with open(filename + '_translation_probs_phrases.txt', 'w') as outputfile:
-        for phrase_pair in source_given_target:
-            outputfile.write("{f} ||| {e} ||| {pfe} {pef}\n".format(
-                f=phrase_pair[0], e=phrase_pair[1],
-                pfe=source_given_target[phrase_pair],
-                pef=target_given_source[phrase_pair]))
-        sys.stdout.write('Saved to file: %s\n' % outputfile.name)
-
-def write_lexweights_to_file(outputfile,
-                           phrase_source_given_target,
-                           phrase_target_given_source,
-                           lex_weight_source_given_target,
-                           lex_weight_target_given_source):
-    """
-    Write to given file in the following format:
-    f ||| e ||| p(f|e) p(e|f) l(f|e) l(e|f)
-    """
-    with open(outputfile + '_lexprobs_phrases.txt', 'w') as outputfile:
-        for phrase_pair in lex_weight_source_given_target.iterkeys():
-            outputfile.write("{f} ||| {e} ||| {pfe} {pef} {lfe} {lef}\n".format(
-                f=phrase_pair[0], e=phrase_pair[1],
-                pfe=phrase_source_given_target[phrase_pair],
-                pef=phrase_target_given_source[phrase_pair],
-                lfe=lex_weight_source_given_target[phrase_pair],
-                lef=lex_weight_target_given_source[phrase_pair]))
-        sys.stdout.write("Saved to file: %s\n" % outputfile.name)
+    with open(filename, 'w') as out:
+        for pair in source_given_target:
+            out.write("{f} ||| {e} ||| {pfe} {pef}\n".format(
+                f=pair[0], e=pair[1],
+                pfe=source_given_target[pair],
+                pef=target_given_source[pair]))
+        sys.stdout.write('Saved to file: %s\n' % out.name)
 
 def all_phrase_info_to_file(outputfile,
                             phrase_source_given_target,
@@ -707,6 +686,8 @@ def all_phrase_info_to_file(outputfile,
                             source_phrase_freqs,
                             target_phrase_freqs,
                             phrase_pair_freqs):
+    """Write to given file in the following format:
+    f ||| e ||| p(f|e) p(e|f) l(f|e) l(e|f) ||| freq(f) freq(e) freq(f,e)"""
     with open(outputfile + '_all_info.txt', 'w') as out:
         for phrase_pair in phrase_pair_freqs:
             out.write('{f} ||| {e} ||| {pfe} {pef} {lfe} {lef} ||| {freqf} {freqe} {freqfe}\n'.format(
@@ -766,13 +747,6 @@ def load_phrases_from_file(name):
         return (phrase_source_given_target, phrase_target_given_source,
             lex_weight_source_given_target, lex_weight_target_given_source,
             source_phrase_freqs, target_phrase_freqs, phrase_pair_freqs)
-
-def file_exists(name):
-    """Return true if file exists"""
-    try:
-        with open(name) as _: return True
-    except:
-        return False
 
 def determine_reordering(left_pair, right_pair):
     """phrase_range = source_min, target_min, source_max, target_max"""
@@ -879,7 +853,7 @@ def do_the_work(alignments, source, target, outputfile, max_lines, max_length, p
          '\nMax lines: ', max_lines, '\nMax length: ', max_length,
          '\nProcesses:', processes, '\n')
 
-
+    # Calculate the phrase counts and lex counts
     if processes <= 1:
         phrase_freqs, lex_freqs, phrase_to_internals = \
             extract_phrase_pair_freqs(alignments, source, target,
@@ -892,8 +866,10 @@ def do_the_work(alignments, source, target, outputfile, max_lines, max_length, p
 
     phrase_pair_freqs, source_phrase_freqs, target_phrase_freqs = phrase_freqs
     lex_pair_freqs, source_lex_freqs, target_lex_freqs = lex_freqs
-    write_phrases_to_file(outputfile, phrase_pair_freqs,
-                          source_phrase_freqs, target_phrase_freqs)
+    freqs_to_file(outputfile + '_extracted_phrases.txt', phrase_pair_freqs,
+                  source_phrase_freqs, target_phrase_freqs)
+    freqs_to_file(outputfile + '_extracted_lexwords.txt', lex_pair_freqs,
+                  source_lex_freqs, target_lex_freqs)
 
     # Calculating translation probabilities P(f|e) and P(e|f)
     phrase_source_given_target, phrase_target_given_source = \
@@ -901,8 +877,8 @@ def do_the_work(alignments, source, target, outputfile, max_lines, max_length, p
                                   target_phrase_freqs,
                                   label='TRANSLATION PROBABILITIES',
                                   logprob=True)
-    write_translationprobs_to_file(outputfile, phrase_source_given_target,
-                                   phrase_target_given_source)
+    probs_to_file(outputfile + '_translation_probs_phrases.txt',
+                  phrase_source_given_target, phrase_target_given_source)
 
     # Calculating lexical probabilities L(f|e) and L(e|f)
     lex_source_given_target, lex_target_given_source = \
@@ -910,17 +886,18 @@ def do_the_work(alignments, source, target, outputfile, max_lines, max_length, p
                                   target_lex_freqs,
                                   label='LEXICAL PROBABILITIES',
                                   logprob=True)
+    probs_to_file(outputfile + '_translation_probs_lex.txt',
+                  lex_source_given_target, lex_target_given_source)
 
     # Calculating lexical weights l(f|e) and l(e|f)
     lex_weight_source_given_target, lex_weight_target_given_source = \
         lexical_weights(phrase_to_internals, lex_source_given_target,
                         lex_target_given_source, target_lex_freqs)
-    write_lexweights_to_file(outputfile,
-                             phrase_source_given_target,
-                             phrase_target_given_source,
-                             lex_weight_source_given_target,
-                             lex_weight_target_given_source)
-
+    probs_to_file(outputfile + '_lexprobs_phrases.txt',
+                  lex_weight_source_given_target,
+                  lex_weight_target_given_source)
+    
+    # write final results to file
     all_phrase_info_to_file(outputfile,
                             phrase_source_given_target,
                             phrase_target_given_source,

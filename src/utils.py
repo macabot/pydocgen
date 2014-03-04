@@ -7,6 +7,14 @@ Useful tools.
 import os
 import sys
 
+def file_exists(name):
+    """Return true if file exists"""
+    try:
+        with open(name, 'r') as _:
+            return True
+    except:
+        return False
+
 def show_progress(i, num_lines, len_bar, text):
     """Print progress bar
 
