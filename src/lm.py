@@ -3,13 +3,13 @@ by Michael Cabot, Richard Rozeboom and Auke Wiggers"""
 
 import argparse
 import math
-from collections import Counter
+from collections import defaultdict
 
 
 def extract_ngram_counts(corpus_name, max_n):
     """Extract ngram counts from a corpus"""
     corpus = open(corpus_name, 'r')
-    ngram_counts = Counter()
+    ngram_counts = defaultdict(int)
     total_unigrams = 0
     for line in corpus:
         words = tuple(line.strip().split())
@@ -33,7 +33,10 @@ def counts_to_probs(ngram_counts, total_unigrams, logprob = True):
             prob = float(count) / history_count
 
         if logprob:
-            prob = math.log(prob)
+            if prob != 0:
+                prob = math.log(prob) 
+            else:
+                prob = -10000
 
         ngram_probs[' '.join(ngram)] = prob
 
@@ -44,53 +47,17 @@ def create_lm(corpus, output, max_n):
     print 'corpus: %s' % corpus
     print 'output: %s' % output
     print 'max_n: %d' % max_n
-    
+
     ngram_counts, total_unigrams = extract_ngram_counts(corpus, max_n)
     ngram_probs = counts_to_probs(ngram_counts, total_unigrams)
-    dict_to_file(output+'.counts', ngram_counts, "%s ||| %s\n")
-    dict_to_file(output, ngram_probs, "%s ||| %s\n")
+    ngrams_to_file(output+'.counts', ngram_counts)
+    ngrams_to_file(output, ngram_probs)
 
-def dict_to_file(file_name, dictionary, string_format = '%s: %s\n', 
-                 key_format = '%s', value_format = '%s'):
-    """Write a dictionary to file by formatting its keys and values"""
-    out = open(file_name, 'w')
-    any_key, any_value = dictionary.iteritems().next()
-    # determine key type
-    if isinstance(any_key, str) or isinstance(any_key, int) or \
-            isinstance(any_key, float):
-        key_type = 0
-    elif key_format.count('%s') == 1:
-        key_type = 1
-    else:
-        key_type = 2
-
-    # determine value type
-    if isinstance(any_value, str) or isinstance(any_value, int) or \
-            isinstance(any_value, float):
-        value_type = 0
-    elif value_format.count('%s') == 1:
-        value_type = 1
-    else:
-        value_type = 2
-
-    for key, value in dictionary.iteritems():
-        if key_type == 0:
-            key_string = key_format % key
-        elif key_type == 1:
-            key_string = key_format % (key,)
-        else:
-            key_string = key_format % tuple(key)
-
-        if value_type == 0:
-            value_string = value_format % value
-        elif value_type == 1:
-            value_string = value_format % (value,)
-        else:
-            value_string = value_format % tuple(value)
-
-        out.write(string_format % (key_string, value_string))
-
-    out.close()
+def ngrams_to_file(file_name, ngrams):
+    """Write ngrams and their values (freqs or probs) to file."""
+    with open(file_name, 'w') as out:
+        for ngram, value in ngrams.iteritems():
+            out.write('{ngram} ||| {value}\n'.format(ngram=ngram, value=value))
 
 def main():
     """Read command line arguments."""
@@ -101,13 +68,13 @@ def main():
         help="Output filename")
     arg_parser.add_argument("-n", "--max_n", required=True, type=int,
         help="Order of language model")
-    
+
     args = arg_parser.parse_args()
 
     corpus = args.corpus
     output = args.output
     max_n = args.max_n
-    
+
     create_lm(corpus, output, max_n)
 
 
