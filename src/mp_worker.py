@@ -158,7 +158,10 @@ class Worker(mp.Process):
 
         self.max_phrase_length = max_phrase_length
         self.num_lines = num_lines
-        self.max_lines = max_lines if max_lines else num_lines
+        if max_lines == float('inf'):
+            self.max_lines = num_lines
+        else:
+            self.max_lines = int(max_lines)
         self.task_id = task_id
 
         self.run = {0: self.run_phrase_extraction,
