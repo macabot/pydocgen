@@ -121,7 +121,7 @@ def update_count(left_phrase_range, right_phrase_range, reordering_counts,
 
 def extract_phrase_pair_freqs(alignments_file, source_file,
                               target_file, max_length,
-                              max_lines=None):
+                              max_lines):
     """Extract and count the frequency of all phrase pairs given an
     alignment between sentences.
 
@@ -162,7 +162,10 @@ def extract_phrase_pair_freqs(alignments_file, source_file,
 
     # open files
     num_lines = sum(1 for line in open(alignments_file))
-    max_lines = int(max_lines) if max_lines else num_lines
+    if max_lines == float('inf'):
+        max_lines = num_lines
+    else:   
+        max_lines = int(max_lines)
 
     alignments = open(alignments_file, 'r')
     source = open(source_file, 'r')
@@ -760,8 +763,6 @@ def load_phrases_from_file(name):
             if i % point == 0:
                 show_progress(i, num_lines, 40, 'LOADING PHRASES')
 
-            #print(f+' ||| '+e+' ||| '+pfe+' '+pef+' '+lfe+' '+lef+' ||| '+freqf+' '+freqe+' '+freqfe+'\n')
-
         return (phrase_source_given_target, phrase_target_given_source,
             lex_weight_source_given_target, lex_weight_target_given_source,
             source_phrase_freqs, target_phrase_freqs, phrase_pair_freqs)
@@ -828,7 +829,7 @@ def main():
 
     outputfile = '{out}_{ml}lines_{mpl}phraselength'.format(
         out=outputfile,
-        ml=max_lines if max_lines!=None else 'all',
+        ml=max_lines if max_lines!=float('inf') else 'all',
         mpl=max_length if max_length!=float('inf') else 'all')
     if args.calc_reordering:
         do_the_work2(alignments, source, target, outputfile, max_lines, max_length, processes)
