@@ -79,8 +79,8 @@ def set_up_workers(alignments_file, source_file, target_file, output_file,
         if i == max_lines:
             break
         task_queue.put((phr.str_to_alignments(alignment_str),
-                        source_str.split(),
-                        target_str.split(),
+                        source_str.strip().split(),
+                        target_str.strip().split(),
                         i))
 
     for i in range(num_processes):
@@ -121,7 +121,11 @@ def set_up_workers(alignments_file, source_file, target_file, output_file,
             lex_pair_freqs.update(lex_freqs[0])
             source_lex_freqs.update(lex_freqs[1])
             target_lex_freqs.update(lex_freqs[2])
-            phrase_to_internals.update(internals)
+            for phrase_pair, possible_internal in internals.iteritems():
+                if phrase_pair in phrase_to_internals:
+                    phrase_to_internals[phrase_pair] |= possible_internal
+                else:
+                    phrase_to_internals[phrase_pair] = possible_internal
 
         phr.show_progress(1, 1, 40, 'PHRASE EXTRACTION')
         sys.stdout.flush()
@@ -297,6 +301,14 @@ class Worker(mp.Process):
         '''
         source_length = len(source_words)
         target_length = len(target_words)
+        
+        # word pair frequencies
+        for source_index, target_index in alignment:
+            word_pair = (source_words[source_index], target_words[target_index])
+            self.lex_pair_freqs[word_pair] += 1
+            self.source_lex_freqs[word_pair[0]] += 1
+            self.target_lex_freqs[word_pair[1]] += 1
+        
         phrase_to_internal = \
             phr.extract_alignments(set(alignment), source_length,
                                    target_length, self.max_phrase_length)
@@ -309,11 +321,6 @@ class Worker(mp.Process):
             self.phrase_pair_freqs[phrase_pair] += 1
             self.source_phrase_freqs[phrase_pair[0]] += 1
             self.target_phrase_freqs[phrase_pair[1]] += 1
-            # word pair frequencies
-            if len(phrase_pair[0].split()) == len(phrase_pair[1].split()) == 1:
-                self.lex_pair_freqs[phrase_pair] += 1
-                self.source_lex_freqs[phrase_pair[0]] += 1
-                self.target_lex_freqs[phrase_pair[1]] += 1
             # phrase pair to possible internal word alignments
             if phrase_pair in self.phrase_to_internals:
                 self.phrase_to_internals[phrase_pair].\
