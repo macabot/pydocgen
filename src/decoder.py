@@ -537,7 +537,7 @@ def find_next_states(source_words, state, language_model, translation_model,
                               word_penalty + lm_continuation_cost + \
                               linear_distortion_cost
             new_coveragevector = state.coveragevector[:left_idx] + \
-                    [i for i in xrange(phrase_start, phrase_end)] + \
+                    range(phrase_start, phrase_end) + \
                     state.coveragevector[left_idx:]
 
             future_cost = get_future_cost(future_cost_dict, new_coveragevector)
