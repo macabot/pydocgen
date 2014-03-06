@@ -2,7 +2,6 @@ import sys
 import multiprocessing as mp
 import gc
 import decoder
-import operator
 import phrase_extract as phr
 from collections import Counter
 from itertools import izip
@@ -11,7 +10,7 @@ def set_up_decoders(input_file, output_file, language_model,
                     source_language_model,
                     translation_model, max_lines, beam_size, num_processes,
                     max_phrase_length, stack_limit, stupid_backoff,
-                    n_size, feature_weights, nbest):
+                    n_size, feature_weights, nbest, empty_default):
     '''Set up workers for decoding'''
     num_lines = sum(1 for line in open(input_file))
     max_lines = int(min(num_lines, max_lines))
@@ -21,7 +20,7 @@ def set_up_decoders(input_file, output_file, language_model,
     for i, source_str in enumerate(source):
         if i == max_lines:
             break
-        task_queue.put((tuple(source_str.replace('\n', '').split()), i))
+        task_queue.put((tuple(source_str.strip().split()), i))
     for i in range(num_processes):
         task_queue.put( 'STOP' )
     source.close()
@@ -40,7 +39,8 @@ def set_up_decoders(input_file, output_file, language_model,
                         stupid_backoff=stupid_backoff,
                         n_size=n_size,
                         feature_weights=feature_weights,
-                        nbest=nbest)
+                        nbest=nbest,
+                        empty_default=empty_default)
 
         workers.append( (worker, p_out) )
         worker.start()
@@ -57,10 +57,9 @@ def set_up_decoders(input_file, output_file, language_model,
     phr.show_progress(1, 1, 40, "DECODING")
     sys.stdout.write('\n')
 
-    output = open(output_file, 'w')
-    for t in translations:
-        output.write(str(t) + '\n')
-        #print t
+    with open(output_file, 'w') as output:
+        for t in translations:
+            output.write(str(t) + '\n')
     print "\n\nOutput written to '{}'".format(output_file)
 
     return translations
@@ -189,6 +188,7 @@ class Worker(mp.Process):
         n_size = self.n_size
         feature_weights = self.feature_weights
         nbest = self.nbest
+        empty_default = self.empty_default
 
         point = self.max_lines / 100 if self.max_lines > 100 else 1
 
@@ -200,7 +200,7 @@ class Worker(mp.Process):
                                    translation_model,
                                    beam_size, max_phrase_length, stack_limit,
                                    stupid_backoff, n_size, feature_weights,
-                                   nbest)
+                                   nbest, empty_default)
             if idx % point == 0:
                 phr.show_progress(idx, self.max_lines, 40, "DECODING")
 

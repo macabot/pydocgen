@@ -9,6 +9,7 @@ import mp_worker
 import heapq
 import math
 import time
+import bisect
 from utils import show_progress
 
 def shortest_path(start, end):
@@ -225,7 +226,7 @@ def test_decode():
                       ("it's", "a", "trap"): 0, ("it's" ,"a", "tarp"): 0,
                       ("it", "is"): -1, ("it",): -1, ("is",): -2, ("the",):-2}
     source_language_model = {("c'est",): 0, ("un",): 0, ("phrase",): 0}
-    translation_model = {
+    """translation_model = {
             ("c'est", "un", "phrase"):
                 [ (("it's", "a", "trap"), (-19, -19, -13, -13)),
                   (("it's", "a", "tarp"), (-19, -19, -14, -14)) ],
@@ -236,13 +237,19 @@ def test_decode():
                   (("the",), [-2,-3,-2,-1]) ],
             ("phrase",):
                 [ (("trap",), [-1,-2,-2,-6]),
-                  (("tarp",), [-1,-2,-3,-4]) ],
+                  (("tarp",), [-1,-2,-3,-7]) ],
             }
+    """
+    translation_model = {
+            ("c'est",)  : [ (("it", "is"),  [-4, -2, -1, -2])], # -9
+            ("un",)     : [ (("a",),        [-2, -3, -5, -1])], # -11
+            ("phrase",) : [ (("trap",),     [-1, -2, -2, -6])]} # -11
     print decode(("c'est", "un", "phrase"), language_model,
         source_language_model, translation_model,
-            beam_size=-20, max_phrase_length=3, stack_limit=100,
+            beam_size=20, max_phrase_length=3, stack_limit=100,
             stupid_backoff = math.log(0.4),
-            n_size = 3, feature_weights=8*[1.0], nbest=2)
+            n_size = 3, feature_weights=8*[1.0], nbest=1,
+            empty_default=True)
 
 
 class BeamStack():
@@ -296,32 +303,38 @@ class BeamStack():
         than beam size. If the stack has reached its capacity add item and
         remove item with lowest score. NOTE this means that all connections
         to this item should also be removed."""
-        stack = self.stack
-
         # apply beam
-        if len(stack) > 0 and \
+        if len(self.stack) > 0 and \
                 item.prob + item.future_cost < self.best_prob - self.beam_size:
             return
         # update best prob
         if item.prob + item.future_cost > self.best_prob:
             self.best_prob = item.prob + item.future_cost
-            # beam prune states in stack
-            while len(stack) > 0 and \
-                    stack[0].prob + stack[0].future_cost < \
-                    self.best_prob - self.beam_size:
-                heapq.heappop(stack)
-        
+            # beam prune states in self.stack
+            self.stack.sort()
+            stack_probs = [state.prob + state.future_cost for state in self.stack]
+            cutoff = bisect.bisect_left(stack_probs, item.prob + item.future_cost)
+            self.stack = self.stack[cutoff+1:]
+            heapq.heapify(self.stack)
+
         # recombination
-        for other_state in (s for s in stack
-                if s.coveragevector == item.coveragevector and \
-                s.history == item.history and s.last_pos == item.last_pos):
+        pop_index = None
+        for i, other_state in enumerate(self.stack):
+            if other_state.coveragevector != item.coveragevector or \
+                    other_state.history != item.history or \
+                    other_state.last_pos != item.last_pos:
+                continue
             if other_state.prob > item.prob:  # Case 1, other_state used
                 other_state.recombinationpointers.append((item, item.prob - other_state.prob))
                 return
             else:                             # Case 2, item used
-                stack.remove(other_state)
+                pop_index = i
                 item.recombinationpointers.append((other_state, other_state.prob - item.prob))
                 break
+        if pop_index != None:
+            self.stack.pop(pop_index)
+            heapq.heapify(self.stack)
+
         # check parent state if manybackpointers needed
         for recmb_state, recmb_cost in item.onebackpointer[0].recombinationpointers:
             cost = item.onebackpointer[1] + recmb_cost
@@ -329,9 +342,9 @@ class BeamStack():
 
         # apply histogram filter
         if len(self.stack) >= self.stack_limit:
-            heapq.heappushpop(stack, item)
+            heapq.heappushpop(self.stack, item)
         else:
-            heapq.heappush(stack, item)
+            heapq.heappush(self.stack, item)
 
     def best_state(self):
         """Return state with the highest score"""
@@ -361,7 +374,7 @@ class DecoderState():
     def __str__(self):
         #return "Prob: {}, History:{}, Coveragevector: {}"\
         #        .format(self.prob, self.history, self.coveragevector)
-        return "{}".format(self.translation) + " {0:.2g}".format(self.prob)
+        return "{}".format(self.translation) + " {0:.4g}".format(self.prob)
 
     def __repr__(self):
         return self.__str__()
@@ -392,7 +405,7 @@ class DecoderState():
 
 
 def decode(source_words, language_model, source_language_model,
-        translation_model, beam_size, max_phrase_length, stack_limit, stupid_backoff, n_size, feature_weights, nbest):
+        translation_model, beam_size, max_phrase_length, stack_limit, stupid_backoff, n_size, feature_weights, nbest, empty_default):
     """Decode one given sentence given models:
 
     return argmax_e p(f|e) . p(e)
@@ -418,7 +431,7 @@ def decode(source_words, language_model, source_language_model,
                                  onebackpointer=(None, 0),
                                  recombinationpointers=[],
                                  manybackpointers=[],
-                                 last_pos=0,
+                                 last_pos=-1,
                                  future_cost=init_future_cost)
 
     # For every len-of-word, there is a beamstack
@@ -428,7 +441,7 @@ def decode(source_words, language_model, source_language_model,
                                        language_model, translation_model,
                                        max_phrase_length, stupid_backoff,
                                        n_size, feature_weights,
-                                       future_cost_dict):
+                                       future_cost_dict, empty_default):
         beamstacks[len(next_state.coveragevector)-3].append(next_state)
     # continue decoding
     for i in xrange(len(beamstacks)):
@@ -440,7 +453,8 @@ def decode(source_words, language_model, source_language_model,
                                                max_phrase_length,
                                                stupid_backoff, n_size,
                                                feature_weights,
-                                               future_cost_dict):
+                                               future_cost_dict,
+                                               empty_default):
                 # '-3' is offset for '-1' and 'len(source_words)' in
                 # coveragevector (cv), and index=0 corresponds to len(cv)=1
                 beamstacks[len(next_state.coveragevector)-3].append(next_state)
@@ -467,7 +481,8 @@ def decode(source_words, language_model, source_language_model,
 
 
 def find_next_states(source_words, state, language_model, translation_model,
-        max_phrase_length, stupid_backoff, n_size, weights, future_cost_dict):
+        max_phrase_length, stupid_backoff, n_size, weights, future_cost_dict,
+        empty_default):
     """
     Costs are:
     1. Phrase translation
@@ -490,11 +505,15 @@ def find_next_states(source_words, state, language_model, translation_model,
                                     min(next_n, left + max_phrase_length))])
 
     # If it is in the translation model, use its corresponding target phrases
+    default = [(('',), (-10000, -10000, -10000, -10000))]
     for left_idx, phrase_start, phrase_end in candidate_phrase_indices:
         source_phrase = source_words[phrase_start:phrase_end]
-        for target_and_probs in translation_model.get(source_phrase,
-                ([((source_phrase), (-10000, -10000, -10000, -10000))] if \
-                    len(source_phrase) == 1 else [])):
+        if len(source_phrase) == 1:
+            if not empty_default:
+                default = [(source_phrase, (-10000, -10000, -10000, -10000))]
+        else:
+            default = []
+        for target_and_probs in translation_model.get(source_phrase, default):
             target_words, (pfe, pef, lfe, lef) = target_and_probs
 
             # 1. phrase translation
@@ -507,7 +526,7 @@ def find_next_states(source_words, state, language_model, translation_model,
                                                         n_size, stupid_backoff,
                                                         weights[4])
             # 3. Phrase penalty is -1
-            # calculated once outside for loops
+            # calculated once at the start of this function
             # 4. Word penalty is a bonus for lengthy phrases
             word_penalty = len(target_words) * weights[6]
             # 5. Linear distortion
@@ -521,7 +540,7 @@ def find_next_states(source_words, state, language_model, translation_model,
                     [i for i in xrange(phrase_start, phrase_end)] + \
                     state.coveragevector[left_idx:]
 
-            future_cost = get_future_cost(future_cost_dict, state.coveragevector)
+            future_cost = get_future_cost(future_cost_dict, new_coveragevector)
 
             newstate = DecoderState(
                     prob=(transition_cost + state.prob),
@@ -531,7 +550,7 @@ def find_next_states(source_words, state, language_model, translation_model,
                     onebackpointer=(state, transition_cost),
                     recombinationpointers=[],
                     manybackpointers=[],
-                    last_pos=phrase_end,
+                    last_pos=phrase_end-1,
                     future_cost=future_cost)
 
             yield newstate
@@ -548,6 +567,7 @@ def calc_lm_continuation(history, target_words, language_model, n,
 
 
 def calc_future_costs(TM, LMe, LMf,  source, stupid_backoff, weights):
+    """Calculate all future costs"""
     future_cost = {}
     for i in xrange(0,len(source)):
         for j in xrange(i, len(source)):
@@ -582,26 +602,28 @@ def test_future_costs():
     print calc_future_costs(TM, LMe, LMf, source, sb, weights)
 
 def lm_test():
-    LM = {}
-    LM[("a","b")] = 0.1
-    LM[("b","c")] = 0.1
-    LM[("c","d")] = 0.1
-    LM[("e","f")] = 0.1
-    LM[("f","g")] = 0.1
-    LM[("a","b","c")] = 0.1
-    LM[("c","d","e")] = 0.1
-    LM[("b","c","d")] = 0.1
+    """test calc_lm_continuation"""
+    lm = {}
+    lm[("a", "b")] = 0.1
+    lm[("b", "c")] = 0.1
+    lm[("c", "d")] = 0.1
+    lm[("e", "f")] = 0.1
+    lm[("f", "g")] = 0.1
+    lm[("a", "b", "c")] = 0.1
+    lm[("c", "d", "e")] = 0.1
+    lm[("b", "c", "d")] = 0.1
     history = ["a"]
-    print calc_lm_continuation(history, ["b","c"], LM, 3)
+    print calc_lm_continuation(history, ["b","c"], lm, 3, 0.4, 1.0)
 
 def test_decoder_stack():
+    """test the decoder stack"""
     stack = BeamStack(10, 3)
     states = []
     probs = [-3, -2, -100, -9, -2]
     futures = [-2, -2, -2, -2, -2]
-    tempState = DecoderState(None, None, None, None, None, [], None, None, None)
+    temp_state = DecoderState(None, None, None, None, None, [], None, None, None)
     for i, prob in enumerate(probs):
-        state = DecoderState(prob, None, None, None, (tempState, None), [], None, None, futures[i])
+        state = DecoderState(prob, None, None, None, (temp_state, None), [], None, None, futures[i])
         states.append(state)
 
     print stack
@@ -613,6 +635,7 @@ def test_decoder_stack():
         print stack.best_prob
 
 def test_feature_weights():
+    """test feature weights"""
     source_words = ['a']
     state = DecoderState(0, ('',), '', [-1, 1], None, [], [], -1, -1)
     language_model = {('x',): -1, ('y',): -2}
@@ -629,14 +652,15 @@ def test_feature_weights():
     for state in find_next_states(source_words, state, language_model,
                                   translation_model, max_phrase_length,
                                   stupid_backoff, n_size, weights,
-                                  future_cost_dict):
+                                  future_cost_dict, empty_default=False):
         print state
 
-def get_future_cost(F, coverage):
+def get_future_cost(future_cost_dict, coverage):
+    """Get the predicted future cost at a partial translation"""
     cost = 0
     for i, j in ((coverage[i]+1, coverage[i+1]-1) for i in xrange(len(coverage)-1)):
         if i <= j:
-            cost += F[i,j]
+            cost += future_cost_dict[i, j]
 
     return cost
 
@@ -682,6 +706,10 @@ def main():
         help="Number of processes to use, default 1 (single process)")
     arg_parser.add_argument('-nb', '--nbest', type=int, default=1,
         help="Specifies how many top translations should be found")
+    arg_parser.add_argument('-ed', '--empty_default', action='store_true',
+        default=False,
+        help="If true: unknown words are translated with an empty string. Else:\
+        unknown words are translated with itself.")
 
     args = arg_parser.parse_args()
 
@@ -706,6 +734,7 @@ def main():
     n_size = args.n_size
     feature_weights = args.feature_weights
     nbest = args.nbest
+    empty_default = args.empty_default
 
     if args.processes < 1:
         do_the_work(input_file, output_file, translation_model, language_model, source_language_model,
@@ -717,14 +746,14 @@ def main():
                                   translation_model, max_lines,
                                   beam_size, args.processes, max_phrase_length,
                                   stack_limit, stupid_backoff, n_size,
-                                  feature_weights, nbest)
+                                  feature_weights, nbest, empty_default)
 
 
 if __name__ == '__main__':
-    start_time = time.time()
+    START_TIME = time.time()
     main()
     print "Time taken to run:"
-    print time.time() - start_time, "seconds"
+    print time.time() - START_TIME, "seconds"
 
     #test_decode()
     #test_decoder_stack()
