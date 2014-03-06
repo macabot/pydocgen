@@ -204,6 +204,8 @@ def do_the_work(input_file, output_file, translation_model, language_model,
                 source_language_model,
                 max_lines, max_phrase_length, beam_size,
                 stack_limit, stupid_backoff, n_size, feature_weights, nbest):
+    """print local arguments
+    TODO remove this function"""
     args = locals()
     for name in args.keys():
         print name.ljust(20), args[name]
@@ -244,7 +246,7 @@ def test_decode():
             ("c'est",)  : [ (("it", "is"),  [-4, -2, -1, -2])], # -9
             ("un",)     : [ (("a",),        [-2, -3, -5, -1])], # -11
             ("phrase",) : [ (("trap",),     [-1, -2, -2, -6])]} # -11
-    print decode(("c'est", "un", "phrase"), language_model,
+    print decode(("c'est", "un", "xxx", "phrase"), language_model,
         source_language_model, translation_model,
             beam_size=20, max_phrase_length=3, stack_limit=100,
             stupid_backoff = math.log(0.4),
@@ -305,15 +307,15 @@ class BeamStack():
         to this item should also be removed."""
         # apply beam
         if len(self.stack) > 0 and \
-                item.prob + item.future_cost < self.best_prob - self.beam_size:
+                item.total_cost < self.best_prob - self.beam_size:
             return
         # update best prob
-        if item.prob + item.future_cost > self.best_prob:
-            self.best_prob = item.prob + item.future_cost
+        if item.total_cost > self.best_prob:
+            self.best_prob = item.total_cost
             # beam prune states in self.stack
             self.stack.sort()
-            stack_probs = [state.prob + state.future_cost for state in self.stack]
-            cutoff = bisect.bisect_left(stack_probs, item.prob + item.future_cost)
+            stack_probs = [state.total_cost for state in self.stack]
+            cutoff = bisect.bisect_left(stack_probs, item.total_cost)
             self.stack = self.stack[cutoff+1:]
             heapq.heapify(self.stack)
 
@@ -370,11 +372,12 @@ class DecoderState():
         self.manybackpointers = manybackpointers
         self.last_pos = last_pos
         self.future_cost = future_cost
+        self.total_cost = self.prob + self.future_cost
 
     def __str__(self):
-        #return "Prob: {}, History:{}, Coveragevector: {}"\
-        #        .format(self.prob, self.history, self.coveragevector)
-        return "{}".format(self.translation) + " {0:.4g}".format(self.prob)
+        return "{translation}: {prob:.6g}+{future:.6g}={total:.6g}".format(
+            translation=self.translation, prob=self.prob,
+            future=self.future_cost, total=self.total_cost)
 
     def __repr__(self):
         return self.__str__()
@@ -392,16 +395,16 @@ class DecoderState():
         return not self == other
 
     def __lt__(self, other):
-        return self.prob + self.future_cost < other.prob + other.future_cost
+        return self.total_cost < other.total_cost
 
     def __le__(self, other):
-        return self.prob + self.future_cost <= other.prob + other.future_cost
+        return self.total_cost <= other.total_cost
 
     def __gt__(self, other):
-        return self.prob + self.future_cost > other.prob + other.future_cost
+        return self.total_cost > other.total_cost
 
     def __ge__(self, other):
-        return self.prob + self.future_cost >= other.prob + other.future_cost
+        return self.total_cost >= other.total_cost
 
 
 def decode(source_words, language_model, source_language_model,
