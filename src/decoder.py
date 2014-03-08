@@ -543,7 +543,8 @@ def find_next_states(source_words, state, language_model, translation_model,
                     range(phrase_start, phrase_end) + \
                     state.coveragevector[left_idx:]
 
-            future_cost = get_future_cost(future_cost_dict, new_coveragevector)
+            new_last_pos = phrase_end - 1
+            future_cost = get_future_cost(future_cost_dict, new_coveragevector, new_last_pos, weights)
 
             newstate = DecoderState(
                     prob=(transition_cost + state.prob),
@@ -553,7 +554,7 @@ def find_next_states(source_words, state, language_model, translation_model,
                     onebackpointer=(state, transition_cost),
                     recombinationpointers=[],
                     manybackpointers=[],
-                    last_pos=phrase_end-1,
+                    last_pos=new_last_pos,
                     future_cost=future_cost)
 
             yield newstate
@@ -572,14 +573,17 @@ def calc_lm_continuation(history, target_words, language_model, n,
 def calc_future_costs(TM, LMe, LMf,  source, stupid_backoff, weights):
     """Calculate all future costs"""
     future_cost = {}
-    for i in xrange(0,len(source)):
+    for i in xrange(0, len(source)):
         for j in xrange(i, len(source)):
             f = tuple(source[i:j+1])
 
             if f in TM:
-                lm_probs = [weights[4] * get_language_model_prob(LMe, e[0], stupid_backoff) for e in TM[f]]
-                conditional_probs = [weights[1] * e[1][1] for e in TM[f] ]
-                future_cost[i,j] = max(a + b for a,b in zip(lm_probs, conditional_probs))
+                lm_probs = (weights[4] * get_language_model_prob(LMe, e[0], stupid_backoff) for e in TM[f])
+                conditional_probs = (weights[0] * e[1][0] + 
+                                     weights[1] * e[1][1] +
+                                     weights[2] * e[1][2] +
+                                     weights[3] * e[1][3] for e in TM[f])
+                future_cost[i,j] = max(a + b for a, b in zip(lm_probs, conditional_probs))
             elif i == j:
                 future_cost[i,j] =  -10 + weights[4] * \
                         get_language_model_prob(LMf, f, stupid_backoff)
@@ -658,14 +662,22 @@ def test_feature_weights():
                                   future_cost_dict, empty_default=False):
         print state
 
-def get_future_cost(future_cost_dict, coverage):
+def get_future_cost(future_cost_dict, coverage, last_pos, weights):
     """Get the predicted future cost at a partial translation"""
     cost = 0
+    # translation and language cost
     for i, j in ((coverage[i]+1, coverage[i+1]-1) for i in xrange(len(coverage)-1)):
         if i <= j:
             cost += future_cost_dict[i, j]
+    # linear distortion cost
+    coverage_set = set(coverage)
+    unvisited = [i for i in xrange(coverage[-1]) if i not in coverage_set]
+    distortion_cost = -abs(unvisited[0] - last_pos - 1)
+    distortion_cost += sum(-abs(unvisited[i] - unvisited[i-1] - 1)
+                           for i in xrange(1, len(unvisited)))
+    distortion_cost *= weights[7]
 
-    return cost
+    return cost + distortion_cost
 
 
 def main():
