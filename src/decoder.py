@@ -585,10 +585,10 @@ def calc_future_costs(TM, LMe, LMf,  source, stupid_backoff, weights):
                                      weights[3] * e[1][3] for e in TM[f])
                 future_cost[i,j] = max(a + b for a, b in zip(lm_probs, conditional_probs))
             elif i == j:
-                future_cost[i,j] =  -10 + weights[4] * \
+                future_cost[i,j] =  -10.0 + weights[4] * \
                         get_language_model_prob(LMf, f, stupid_backoff)
             else:
-                future_cost[i,j] = -10000
+                future_cost[i,j] = -10000.0
     for i in xrange(0,len(source)):
         for j in xrange(i+1, len(source)):
             future_cost[i,j] = max(max(future_cost[i,k]+future_cost[k+1, j] for k in xrange(i,j)),future_cost[i,j])
