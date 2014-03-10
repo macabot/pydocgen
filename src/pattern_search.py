@@ -3,10 +3,11 @@ By Michael Cabot
 
 Pattern Search
 """
-import subprocess
+
 import re
 import math
 import argparse
+import os
 
 import decoder
 import mp_worker
@@ -64,14 +65,17 @@ class DecodeArguments:
 
 def get_bleu_score(bleu_path, reference, hypothesis):
     """calculate the BLEU score"""
-    bleu_out = subprocess.Popen(['perl', bleu_path, reference, '<', hypothesis])
+    assert os.path.isfile(bleu_path), 'invalid bleu path: %s' % bleu_path
+    assert os.path.isfile(reference), 'invalid reference path: %s' % reference
+    assert os.path.isfile(hypothesis), 'invalid hypothesis path: %s' % hypothesis
+    bleu_out = os.popen("%s %s < %s" % (bleu_path, reference, hypothesis)).read()
     match = re.search(r'(?<=BLEU = )\d+(\.\d+)?', bleu_out)
     assert match != None, 'unknown bleu output: %s' % bleu_out
     return float(match.group(0))
     
 def test_get_bleu_score():
     """test get_bleu_score"""
-    bleu_path = '/home/bart/apps/smt_tools/decoder/mosesdecoder/scrips/generic/multi-bleu.perl'
+    bleu_path = '/home/bart/apps/smt_tools/decoders/mosesdecoder/scripts/generic/multi-bleu.perl'
     reference = '/home/michael/pydocgen/data/tune/tune_clean_docstring-filtered_sourcecode-NOcontext-NOfactors.tok.doc'
     hypothesis = '/home/michael/pydocgen/data/decode/blankdefault/tunesearch_NOfactors.doc_STACK100TOP10BEAM1CORE30'
     print get_bleu_score(bleu_path, reference, hypothesis)
@@ -228,5 +232,6 @@ def main():
 
 
 if __name__ == '__main__':
-    #main()
-    test_optimize()
+    main()
+    #test_optimize()
+    #test_get_bleu_score()
