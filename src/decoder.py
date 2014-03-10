@@ -670,12 +670,14 @@ def get_future_cost(future_cost_dict, coverage, last_pos, weights):
         if i <= j:
             cost += future_cost_dict[i, j]
     # linear distortion cost
+    distortion_cost = 0
     coverage_set = set(coverage)
     unvisited = [i for i in xrange(coverage[-1]) if i not in coverage_set]
-    distortion_cost = -abs(unvisited[0] - last_pos - 1)
-    distortion_cost += sum(-abs(unvisited[i] - unvisited[i-1] - 1)
-                           for i in xrange(1, len(unvisited)))
-    distortion_cost *= weights[7]
+    if len(unvisited) > 0:
+        distortion_cost = -abs(unvisited[0] - last_pos - 1)
+        distortion_cost += sum(-abs(unvisited[i] - unvisited[i-1] - 1)
+                               for i in xrange(1, len(unvisited)))
+        distortion_cost *= weights[7]
 
     return cost + distortion_cost
 
