@@ -8,7 +8,6 @@ import re
 import math
 import argparse
 import os
-import sys
 
 import decoder
 import mp_worker
@@ -81,9 +80,15 @@ def test_get_bleu_score():
     hypothesis = '/home/michael/pydocgen/data/decode/blankdefault/tunesearch_NOfactors.doc_STACK100TOP10BEAM1CORE30'
     print get_bleu_score(bleu_path, reference, hypothesis)
 
-def optimize(weights, get_score, step_size, min_diff, max_iterations, 
-             weight_scores = None):
+def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
+             max_iterations, weight_scores = None):
     """Optimize the score with pattern search"""
+    print 'weights: %s' % (weights,)
+    print 'step_size: %s' % (step_size,)
+    print 'min_score_diff: %s' % (min_score_diff,)
+    print 'min_step_size: %s' % (min_step_size,)
+    print 'max_iterations: %s' % (max_iterations,)
+
     if weight_scores == None:   
         weight_scores = {}
     diff = float('inf')
@@ -91,8 +96,9 @@ def optimize(weights, get_score, step_size, min_diff, max_iterations,
     best_score = get_score(weights)
     best_weights = weights
     weight_scores[tuple(weights)] = best_score # map weights to score
-    while diff >= min_diff and iteration <= max_iterations:
-        sys.stdout.write('\ri:{i}<={max}'.format(i=iteration, max=max_iterations))
+    while diff >= min_score_diff and iteration <= max_iterations and \
+            step_size >= min_step_size:
+        print "i:%s, w:%s, s:%s" % (iteration, best_weights, best_score)
         previous_best_weights = best_weights[:]
         current_weights = best_weights[:]
         for i in xrange(len(weights)):
@@ -124,18 +130,20 @@ def optimize(weights, get_score, step_size, min_diff, max_iterations,
 
         iteration += 1
     
-    sys.stdout.write('\ri:{i}<={max}\n'.format(i=iteration, max=max_iterations))
+    print "i:%s, w:%s, s:%s" % (iteration, best_weights, best_score)
     return (best_weights, best_score), weight_scores
 
 def test_optimize():
     """test optimize"""
-    get_score = lambda weights: -(weights[0]**2 + weights[1]**2)
+    get_score = lambda weights: -(weights[0]**2)
     step_size = 1.0
-    min_diff = 0.001
+    min_score_diff = 0.001
+    min_step_size = 0.5**5
     max_iterations = 3000
-    (best_weights, best_score), _weight_scores = optimize([300.1, 400.1], get_score,
+    (best_weights, best_score), _weight_scores = optimize([3.0], get_score,
                                                          step_size,
-                                                         min_diff,
+                                                         min_score_diff,
+                                                         min_step_size,
                                                          max_iterations)
     print 'best_weights: %s' % (best_weights,)
     print 'best_score: %s' % (best_score,)
@@ -216,6 +224,8 @@ def main():
     arg_parser.add_argument('-mit', '--max_iterations', required=True,
         type=int, help="Maximal iterations of pattern search. \
         (stopping criteria 2)")
+    arg_parser.add_argument('-msz', '--min_step_size', required=True,
+        type=float, help="Minimal step size (stopping criteria 3)")
     arg_parser.add_argument('-bp', '--bleu_path', required=True,
         help="Path to multi-bleu.perl")
     arg_parser.add_argument('-ref', '--reference', required=True,
@@ -267,6 +277,7 @@ def main():
                                                          get_score,
                                                          args.step_size,
                                                          args.min_score_diff,
+                                                         args.min_step_size,
                                                          args.max_iterations,
                                                          weight_scores)
     print 'final weights:'

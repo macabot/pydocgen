@@ -9,7 +9,8 @@ WEIGHTS="1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0"
 
 STEP_SIZE="1.0"
 MIN_SCORE_DIFF="0.01"
-MAX_ITERATIONS="200"
+MAX_ITERATIONS="30"
+MIN_STEP_SIZE="0.03125"
 
 for stack in `echo $STACK`
 do
@@ -35,6 +36,7 @@ do
             -sz $STEP_SIZE \
             -msd $MIN_SCORE_DIFF \
             -mit $MAX_ITERATIONS \
+            -msz $MIN_STEP_SIZE \
             -bp /home/bart/apps/smt_tools/decoders/mosesdecoder/scripts/generic/multi-bleu.perl \
             -ref /home/michael/pydocgen/data/tune/tune_clean_docstring-filtered_sourcecode-NOcontext-NOfactors.tok.doc | tee ${out_path}_stdout
 
