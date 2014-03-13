@@ -11,6 +11,31 @@ import os
 
 import utils
 
+def histogram(data, num_bins):
+    """plot a histogram"""
+    n, bins, patches = plt.hist(data, num_bins, range=range)
+    plt.plot(bins)
+    plt.ylim([min(data), max(data)])
+    plt.show()
+
+def data_from_file(path):
+    """read data from file and create a histogram"""
+    assert os.path.isfile(path), 'invalid path: %s' % path
+    data = []
+    with open(path, 'r') as in_file:
+        for line in in_file:
+            tokens = line.strip().split()
+            if len(tokens) > 0:
+                data.append(float(tokens[0]))
+    return data
+
+def test_histogram_from_file():
+    """test data_from_file and histogram"""
+    path = '../data/confirm/line_score.txt'
+    num_bins = 100
+    data = data_from_file(path)
+    histogram(data, num_bins)
+
 def word_ratios(path_a, path_b):
     """For each line in file A and B calculate the ratio of words."""
     ratios = []
@@ -158,5 +183,6 @@ if __name__ == '__main__':
     #test_plot_zipf()
     #test_count_lines_with_extension()
     #test_num_lines_with_extension()
-    test_plot_length_map()
+    #test_plot_length_map()
     #test_count_methods_and_functions()
+    test_histogram_from_file()
