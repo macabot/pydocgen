@@ -8,6 +8,7 @@ import re
 import math
 import argparse
 import os
+from collections import OrderedDict
 
 import decoder
 import mp_worker
@@ -90,12 +91,18 @@ def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
     print 'max_iterations: %s' % (max_iterations,)
 
     if weight_scores == None:   
-        weight_scores = {}
+        weight_scores = OrderedDict()
+
+    t_weights = tuple(weights)
+    best_weights = weights[:]
+    if t_weights not in weight_scores:
+        best_score = get_score(weights)
+        weight_scores[t_weights] = best_score
+    else:
+        best_score = weight_scores[t_weights]
+    
     diff = float('inf')
     iteration = 0
-    best_score = get_score(weights)
-    best_weights = weights
-    weight_scores[tuple(weights)] = best_score # map weights to score
     while diff >= min_score_diff and iteration <= max_iterations and \
             step_size >= min_step_size:
         print "i:%s, w:%s, s:%s" % (iteration, best_weights, best_score)
@@ -161,7 +168,7 @@ def weight_scores_to_file(weight_scores, path):
 
 def read_weight_scores(path):
     """Read weight_scores from file"""
-    weight_scores = {}
+    weight_scores = OrderedDict()
     with open(path, 'r') as in_file:
         for line in in_file:
             weights, score = line.strip().split(' ||| ')
