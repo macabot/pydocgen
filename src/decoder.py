@@ -197,7 +197,7 @@ def get_language_model_prob(language_model, target_phrase, stupid_backoff):
             language_model[target_phrase] = prob # update language model
             return prob
         else:
-            return -10000
+            return -10000.0
 
 
 def do_the_work(input_file, output_file, translation_model, language_model,
@@ -246,12 +246,13 @@ def test_decode():
             ("c'est",)  : [ (("it", "is"),  [-4, -2, -1, -2])], # -9
             ("un",)     : [ (("a",),        [-2, -3, -5, -1])], # -11
             ("phrase",) : [ (("trap",),     [-1, -2, -2, -6])]} # -11
-    print decode(("c'est", "un", "xxx", "phrase"), language_model,
+    translation = decode(("c'est", "un", "xxx", "phrase"), language_model,
         source_language_model, translation_model,
             beam_size=20, max_phrase_length=3, stack_limit=100,
             stupid_backoff = math.log(0.4),
             n_size = 3, feature_weights=8*[1.0], nbest=1,
             empty_default=True)
+    print '|' + translation + '|'
 
 
 class BeamStack():
@@ -474,13 +475,13 @@ def decode(source_words, language_model, source_language_model,
         viterbipath.append(state)
         state = state.onebackpointer[0]
     # Translation is now encoded in viterbipath in reverse order
-    viterbi_translation = ' '.join(reversed([s.translation for s in viterbipath]))
+    viterbi_translation = ' '.join(t for t in reversed([s.translation for s in viterbipath]) if t != '')
     if nbest == 1:
         return viterbi_translation
 
     # We could also get n-best list if the graph is known
     shortest_paths = k_shortest_paths(viterbipath, initial_state, nbest)
-    return [' '.join(reversed([s.translation for s in p if s is not None])) for p in shortest_paths]
+    return [' '.join(t for t in reversed([s.translation for s in p if s is not None]) if t != '') for p in shortest_paths]
 
 
 def find_next_states(source_words, state, language_model, translation_model,
@@ -508,22 +509,25 @@ def find_next_states(source_words, state, language_model, translation_model,
                                     min(next_n, left + max_phrase_length))])
 
     # If it is in the translation model, use its corresponding target phrases
-    default = [(('',), (-10000, -10000, -10000, -10000))]
+    default = [(('',), (-10000.0, -10000.0, -10000.0, -10000.0))]
     for left_idx, phrase_start, phrase_end in candidate_phrase_indices:
         source_phrase = source_words[phrase_start:phrase_end]
         if len(source_phrase) == 1:
             if not empty_default:
-                default = [(source_phrase, (-10000, -10000, -10000, -10000))]
+                default = [(source_phrase, (-10000.0, -10000.0, -10000.0, -10000.0))]
         else:
             default = []
         for target_and_probs in translation_model.get(source_phrase, default):
             target_words, (pfe, pef, lfe, lef) = target_and_probs
-
+            empty_target = (target_words == ('',))
             # 1. phrase translation
             phrase_translation_cost = weights[0]*pfe + weights[1]*pef + \
                                       weights[2]*lfe + weights[3]*lef
             # 2. LM continuation
-            lm_continuation_cost = calc_lm_continuation(state.history,
+            if empty_target:
+                lm_continuation_cost = 0.0
+            else:
+                lm_continuation_cost = calc_lm_continuation(state.history,
                                                         target_words,
                                                         language_model,
                                                         n_size, stupid_backoff,
@@ -531,7 +535,10 @@ def find_next_states(source_words, state, language_model, translation_model,
             # 3. Phrase penalty is -1
             # calculated once at the start of this function
             # 4. Word penalty is a bonus for lengthy phrases
-            word_penalty = len(target_words) * weights[6]
+            if empty_target:
+                word_penalty = 0.0
+            else:
+                word_penalty = len(target_words) * weights[6]
             # 5. Linear distortion
             linear_distortion_cost = -abs(phrase_start - state.last_pos - 1) * \
                                      weights[7]
@@ -545,10 +552,13 @@ def find_next_states(source_words, state, language_model, translation_model,
 
             new_last_pos = phrase_end - 1
             future_cost = get_future_cost(future_cost_dict, new_coveragevector, new_last_pos, weights)
-
+            if empty_target:
+                new_history = state.history[-(n_size-1):]
+            else:
+                new_history = (state.history + target_words)[-(n_size-1):]
             newstate = DecoderState(
                     prob=(transition_cost + state.prob),
-                    history=(state.history + target_words)[-(n_size-1):],
+                    history=new_history,
                     translation=' '.join(target_words),
                     coveragevector=new_coveragevector,
                     onebackpointer=(state, transition_cost),
@@ -578,7 +588,7 @@ def calc_future_costs(TM, LMe, LMf,  source, stupid_backoff, weights):
             f = tuple(source[i:j+1])
 
             if f in TM:
-                lm_probs = (weights[4] * get_language_model_prob(LMe, e[0], stupid_backoff) for e in TM[f])
+                lm_probs = (0.0 if e[0]==('',) else weights[4] * get_language_model_prob(LMe, e[0], stupid_backoff) for e in TM[f])
                 conditional_probs = (weights[0] * e[1][0] + 
                                      weights[1] * e[1][1] +
                                      weights[2] * e[1][2] +
@@ -596,6 +606,7 @@ def calc_future_costs(TM, LMe, LMf,  source, stupid_backoff, weights):
     return future_cost
 
 def test_future_costs():
+    """test calc_future_costs"""
     source = ['a', 'b', 'b', 'a']
     TM = {tuple('a'):[ (['x'], (-1, -1, -1, -1)),
                 (['y'], (-1, -1, -1, -1)) ],
