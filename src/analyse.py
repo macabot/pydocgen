@@ -13,9 +13,7 @@ import utils
 
 def histogram(data, num_bins):
     """plot a histogram"""
-    n, bins, patches = plt.hist(data, num_bins, range=range)
-    plt.plot(bins)
-    plt.ylim([min(data), max(data)])
+    plt.hist(data, num_bins)
     plt.show()
 
 def data_from_file(path):
@@ -34,6 +32,7 @@ def test_histogram_from_file():
     path = '../data/confirm/line_score.txt'
     num_bins = 100
     data = data_from_file(path)
+    data = [x for x in data if x!=0.0] # ignore 0.0
     histogram(data, num_bins)
 
 def word_ratios(path_a, path_b):
