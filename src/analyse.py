@@ -6,10 +6,67 @@ Functions for analysing data.
 
 import numpy as np
 import matplotlib.pyplot as plt
-from collections import Counter
+from collections import Counter, defaultdict
 import os
+import sys
 
 import utils
+
+def read_translation_freqs(file_name, num_lines=None):
+    """Read the number of source translations"""
+    translation_freqs = defaultdict(int)
+    document = open(file_name, 'r')
+
+    if num_lines == None:
+        num_lines = sum(1 for line in open(file_name, 'r'))
+    point = num_lines / 100 if num_lines > 100 else 1
+
+    for i, line in enumerate(document):
+        if i % point == 0:
+            utils.show_progress(i, num_lines, 40, 'LOADING TRANSLATIONMODEL')
+
+        segments = line.strip().split(' ||| ')
+        source = segments[0]
+
+        translation_freqs[source] += 1
+
+    utils.show_progress(1, 1, 40, 'LOADING TRANSLATIONMODEL')
+    sys.stdout.write('\n')
+    document.close()
+
+    return translation_freqs
+
+def freqs_of_freqs(translation_freqs):
+    """Count the number of times a source phrase has x translations"""
+    freqs = defaultdict(int)
+    for _source, freq in translation_freqs.iteritems():
+        freqs[freq] += 1
+    return freqs
+
+def translation_distribution(path, num_lines=None):
+    """plot the distribution of number of translations"""
+    translation_freqs = read_translation_freqs(path, num_lines)
+    freqs = freqs_of_freqs(translation_freqs)
+
+    under10 = sum(y for x, y in freqs.iteritems() if x < 10)
+    print 'under10: %d' % under10
+    
+    x_values, y_values = zip(*freqs.items())
+    total = sum(y_values)
+    print 'total: %d' % total
+    plt.plot(x_values, y_values, 'ro')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel('number of translations')
+    plt.ylabel('frequency')
+    plt.title('distribution of number or source translations')
+    plt.savefig('../images/sourcetranslationdistribution.pdf')
+    plt.show()
+
+def test_translation_distribution():
+    """test translation_distribution"""
+    path = '../data/phrases/multicore/empty_phrases_NOfactors_alllines_7phraselength_all_info.txt'
+    translation_distribution(path, 5486072)
 
 def histogram(data, num_bins):
     """plot a histogram"""
@@ -32,7 +89,7 @@ def test_histogram_from_file():
     path = '../data/confirm/line_score.txt'
     num_bins = 100
     data = data_from_file(path)
-    data = [x for x in data if x!=0.0] # ignore 0.0
+    data = [x for x in data if x != 0.0] # ignore 0.0
     histogram(data, num_bins)
 
 def word_ratios(path_a, path_b):
@@ -53,7 +110,7 @@ def test_average_ratio():
     print 'mean: %s' % np.mean(ratios)
     print 'deviation: %s' % np.std(ratios)
 
-def plot_zipf(freqs):
+def plot_zipf(freqs, xlog=True, ylog=True):
     """Plot a zipf distribution of the frequencies.
 
     TODO should be called power distribution?"""
@@ -65,8 +122,10 @@ def plot_zipf(freqs):
     sorted_counts = sorted(counts.items())
     x_values, y_values = zip(*sorted_counts)
     plt.plot(x_values, y_values, 'ro')
-    plt.xscale('log')
-    plt.yscale('log')
+    if xlog:
+        plt.xscale('log')
+    if ylog:
+        plt.yscale('log')
     plt.show()
 
 def test_plot_zipf():
@@ -184,4 +243,5 @@ if __name__ == '__main__':
     #test_num_lines_with_extension()
     #test_plot_length_map()
     #test_count_methods_and_functions()
-    test_histogram_from_file()
+    #test_histogram_from_file()
+    test_translation_distribution()
