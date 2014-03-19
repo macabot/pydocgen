@@ -46,6 +46,7 @@ def freqs_of_freqs(translation_freqs):
 def translation_distribution(path, num_lines=None):
     """plot the distribution of number of translations"""
     translation_freqs = read_translation_freqs(path, num_lines)
+    print 'number of source phrases: %d' % len(translation_freqs)
     freqs = freqs_of_freqs(translation_freqs)
 
     under10 = sum(y for x, y in freqs.iteritems() if x < 10)
@@ -60,7 +61,7 @@ def translation_distribution(path, num_lines=None):
     plt.xlabel('number of translations')
     plt.ylabel('frequency')
     plt.title('distribution of number or source translations')
-    plt.savefig('../images/sourcetranslationdistribution.pdf')
+    #plt.savefig('../images/sourcetranslationdistribution.pdf')
     plt.show()
 
 def test_translation_distribution():
