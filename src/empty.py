@@ -61,7 +61,7 @@ def read_lexical_weights(path):
 
     return lex_weight_source_given_target, lex_weight_target_given_source
 
-def add_null_translations(translation_freqs, lex_freqs):
+def add_null_translations(translation_freqs, lex_freqs, extra_empty_translation):
     """add NULL translations as empty translations"""
     phrase_pair_freqs, source_freqs, target_freqs = translation_freqs
     lex_phrase_pair_freqs, lex_source_freqs, lex_target_freqs = lex_freqs
@@ -70,6 +70,12 @@ def add_null_translations(translation_freqs, lex_freqs):
             phrase_pair_freqs[(source, '')] += lex_pair_freq
             source_freqs[source] += lex_source_freqs[source]
             target_freqs[''] += lex_target_freqs[target]
+
+    if extra_empty_translation:
+        for (source, _target) in phrase_pair_freqs.keys():
+            phrase_pair_freqs[(source, '')] += 1
+            source_freqs[source] += 1
+            target_freqs[''] += 1
 
 def add_empty_lexical_weights(lex_weight_source_given_target,
                               lex_weight_target_given_source,
@@ -83,13 +89,13 @@ def add_empty_lexical_weights(lex_weight_source_given_target,
             lex_weight_target_given_source[phrase_pair] = pef
 
 def add_empty_translations(phrase_freqs_path, lex_freqs_path, phrase_all_path,
-                           output_path):
+                           output_path, extra_empty_translation):
     """Add empty translations"""
     translation_freqs = read_freqs(phrase_freqs_path, 'TRANSLATION FREQS')
     lex_freqs = read_freqs(lex_freqs_path, 'LEXICAL FREQS')
     lexical_weights = read_lexical_weights(phrase_all_path)
 
-    add_null_translations(translation_freqs, lex_freqs)
+    add_null_translations(translation_freqs, lex_freqs, extra_empty_translation)
     phrase_pair_freqs, source_phrase_freqs, target_phrase_freqs = translation_freqs
     phrase_source_given_target, phrase_target_given_source = \
         phrase_extract.conditional_probabilities(phrase_pair_freqs,
@@ -121,6 +127,10 @@ def main():
         help="File lex frequencies")
     arg_parser.add_argument("-o", "--output", required=True,
         help="Output filename")
+    arg_parser.add_argument("-e", "--extra_empty_translation",
+        action='store_true', default=False,
+        help="For each source translations add an observation of an empty \
+            translation, i.e. for each (source, target) add (source, '')")
 
     args = arg_parser.parse_args()
 
@@ -135,7 +145,9 @@ def main():
     phrase_all_path = args.phrase_all
     assert os.path.isfile(phrase_all_path), 'invalid phrase_all_path: %s' % phrase_all_path
 
-    add_empty_translations(phrase_freqs_path, lex_freqs_path, phrase_all_path, output_path)
+    extra_empty_translation = args.extra_empty_translation
+    add_empty_translations(phrase_freqs_path, lex_freqs_path, phrase_all_path,
+                           output_path, extra_empty_translation)
 
 
 if __name__ == '__main__':
