@@ -243,10 +243,13 @@ def test_decode():
             }
     """
     translation_model = {
-            ("c'est",)  : [ (("it", "is"),  [-4, -2, -1, -2])], # -9
-            ("un",)     : [ (("a",),        [-2, -3, -5, -1])], # -11
-            ("phrase",) : [ (("trap",),     [-1, -2, -2, -6])]} # -11
-    translation = decode(("c'est", "un", "xxx", "phrase"), language_model,
+            ("c'est",)  : [ (("it", "is"),  [-4, -2, -1, -2]),  # -9
+                            (("",),         [-9, -9, -9, -9])], # -36
+            ("un",)     : [ (("a",),        [-2, -3, -5, -1]),  # -11
+                            (("",),         [-9, -9, -9, -9])], # -36
+            ("phrase",) : [ (("trap",),     [-1, -2, -2, -6]),  # -11
+                            (("",),         [-9, -9, -9, -9])]} # -36 
+    translation = decode(("c'est", "un", "phrase"), language_model,
         source_language_model, translation_model,
             beam_size=20, max_phrase_length=3, stack_limit=100,
             stupid_backoff = math.log(0.4),
