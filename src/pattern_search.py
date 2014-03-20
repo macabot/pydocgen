@@ -8,16 +8,18 @@ import re
 import math
 import argparse
 import os
-from collections import OrderedDict
+import sys
+from collections import OrderedDict, defaultdict
 
 import decoder
 import mp_worker
+from utils import show_progress
 
 class DecodeArguments:
     """Store the arguments for decoding and pattern search"""
 
     def __init__(self, input_file, output_file, language_model,
-                 source_language_model, translation_model_path, max_lines,
+                 source_language_model, full_translation_model, max_lines,
                  beam_size, processes, max_phrase_length, stack_limit,
                  stupid_backoff, n_size, nbest, empty_default, top_translations,
                  bleu_path, reference):
@@ -26,7 +28,7 @@ class DecodeArguments:
         self.output_file = output_file
         self.language_model = language_model
         self.source_language_model = source_language_model
-        self.translation_model_path = translation_model_path
+        self.full_translation_model = full_translation_model
         self.max_lines = max_lines
         self.beam_size = beam_size
         self.processes = processes
@@ -48,10 +50,9 @@ class DecodeArguments:
 
     def decode(self, weights):
         """Decode with given weights"""
-        translation_model = decoder.read_translation_model(self.translation_model_path,
-                                               weights,
-                                               self.top_translations,
-                                               self.max_phrase_length)
+        translation_model = trim_translation_model(self.full_translation_model,
+                                                   weights,
+                                                   self.top_translations)
         mp_worker.set_up_decoders(self.input_file, self.output_file,
                                   self.language_model,
                                   self.source_language_model,
@@ -90,7 +91,7 @@ def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
     print 'min_step_size: %s' % (min_step_size,)
     print 'max_iterations: %s' % (max_iterations,)
 
-    if weight_scores == None:   
+    if weight_scores == None:
         weight_scores = OrderedDict()
 
     t_weights = tuple(weights)
@@ -100,7 +101,7 @@ def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
         weight_scores[t_weights] = best_score
     else:
         best_score = weight_scores[t_weights]
-    
+
     diff = float('inf')
     iteration = 0
     while diff >= min_score_diff and iteration <= max_iterations and \
@@ -136,7 +137,7 @@ def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
             step_size /= 2.0
 
         iteration += 1
-    
+
     print "i:%s, w:%s, s:%s" % (iteration, best_weights, best_score)
     return (best_weights, best_score), weight_scores
 
@@ -176,6 +177,46 @@ def read_weight_scores(path):
             score = float(score)
             weight_scores[weights] = score
     return weight_scores
+
+def read_full_translation_model(file_name, max_phrase_length):
+    """Read the full translation model taking into account the maximal phrase
+    length"""
+    translation_model = defaultdict(list)
+    document = open(file_name, 'r')
+
+    num_lines = sum(1 for line in open(file_name, 'r'))
+    point = num_lines / 100 if num_lines > 100 else 1
+
+    for i, line in enumerate(document):
+        if i % point == 0:
+            show_progress(i, num_lines, 40, 'LOADING FULLTRANSLATIONMODEL')
+
+        segments = line.strip().split(' ||| ')
+        source = tuple(segments[0].split())
+        if len(source) > max_phrase_length:
+            continue
+        target = tuple(segments[1].split())
+        probs = [float(prob) for prob in segments[2].split()]
+
+        translation_model[source].append((target, probs))
+
+    show_progress(1, 1, 40, 'LOADING FULLTRANSLATIONMODEL')
+    sys.stdout.write('\n')
+    document.close()
+
+    return translation_model
+
+def trim_translation_model(full_translation_model, weights,
+                           top_translations):
+    """Use the full_translation_model to create a smaller translation_model
+    according to the restrictions of the weights and top_translations."""
+    translation_model = defaultdict(list)
+    for source, target_probs in full_translation_model.iteritems():
+        sorted_target_probs = sorted(target_probs, key=lambda (_target, probs):
+                                     sum([prob * weights[i]
+                                     for i, prob in enumerate(probs)]))
+        translation_model[source] = sorted_target_probs[-top_translations:]
+    return translation_model
 
 def main():
     """Read command line arguments."""
@@ -241,7 +282,7 @@ def main():
         help="Path to existing weight scores")
 
     args = arg_parser.parse_args()
-    
+
     weight_scores_path = args.weight_scores
     if weight_scores_path != None:
         weight_scores = read_weight_scores(weight_scores_path)
@@ -250,15 +291,19 @@ def main():
 
     input_file = args.input_file
     output_file = args.output_file
+    max_phrase_length = args.max_phrase_length
     language_model = decoder.read_language_model(args.language_model,
-                                         args.max_phrase_length,
-                                         label='LOADING LANGUAGEMODEL TARGET')
+                                        max_phrase_length,
+                                        label='LOADING LANGUAGEMODEL TARGET')
 
     source_language_model = decoder.read_language_model(args.source_language_model,
-                                                args.max_phrase_length,
-                                                label='LOADING LANGUAGEMODEL SOURCE')
+                                        max_phrase_length,
+                                        label='LOADING LANGUAGEMODEL SOURCE')
+
+    full_translation_model = read_full_translation_model(args.translation_model,
+                                        max_phrase_length)
+
     max_lines = args.max_lines
-    max_phrase_length = args.max_phrase_length
     stack_limit = args.stack_limit
     beam_size = args.beam_size
     stupid_backoff = math.log(args.stupid_backoff)
@@ -271,7 +316,7 @@ def main():
     reference = args.reference
 
     d_args = DecodeArguments(input_file, output_file, language_model,
-                 source_language_model, args.translation_model, max_lines,
+                 source_language_model, full_translation_model, max_lines,
                  beam_size, args.processes, max_phrase_length, stack_limit,
                  stupid_backoff, n_size, nbest, empty_default, top_translations,
                  bleu_path, reference)
