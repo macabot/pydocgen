@@ -11,6 +11,7 @@ import math
 import time
 import bisect
 from utils import show_progress
+import os
 
 def shortest_path(start, end):
     '''Graph is internal in states.'''
@@ -223,6 +224,7 @@ def do_the_work(input_file, output_file, translation_model, language_model,
 
 
 def test_decode():
+    """test decode"""
     language_model = {("it's",): 0, ("a",): 0, ("trap",): -1, ("tarp",): -1,
                       ("it's", "a"): -1, ("a", "trap"): -3, ("a", "tarp"): -3,
                       ("it's", "a", "trap"): 0, ("it's" ,"a", "tarp"): 0,
@@ -248,14 +250,14 @@ def test_decode():
             ("un",)     : [ (("a",),        [-2, -3, -5, -1]),  # -11
                             (("",),         [-9, -9, -9, -9])], # -36
             ("phrase",) : [ (("trap",),     [-1, -2, -2, -6]),  # -11
-                            (("",),         [-9, -9, -9, -9])]} # -36 
+                            (("",),         [-9, -9, -9, -9])]} # -36
     translation = decode(("c'est", "un", "phrase"), language_model,
         source_language_model, translation_model,
             beam_size=20, max_phrase_length=3, stack_limit=100,
             stupid_backoff = math.log(0.4),
             n_size = 3, feature_weights=8*[1.0], nbest=1,
             empty_default=True)
-    print '|' + translation + '|'
+    print '|' + translation + '|' # add bars to see extra spaces
 
 
 class BeamStack():
@@ -574,6 +576,7 @@ def find_next_states(source_words, state, language_model, translation_model,
 
 def calc_lm_continuation(history, target_words, language_model, n,
                          stupid_backoff, weight):
+    """calculate the language model cost of the new target_words"""
     sentence = history + target_words
     probs = 0
     for i in xrange(len(history), len(sentence)):
@@ -592,7 +595,7 @@ def calc_future_costs(TM, LMe, LMf,  source, stupid_backoff, weights):
 
             if f in TM:
                 lm_probs = (0.0 if e[0]==('',) else weights[4] * get_language_model_prob(LMe, e[0], stupid_backoff) for e in TM[f])
-                conditional_probs = (weights[0] * e[1][0] + 
+                conditional_probs = (weights[0] * e[1][0] +
                                      weights[1] * e[1][1] +
                                      weights[2] * e[1][2] +
                                      weights[3] * e[1][3] for e in TM[f])
@@ -746,6 +749,16 @@ def main():
 
     input_file = args.input_file
     output_file = args.output_file
+
+    # check if valid paths
+    assert os.path.isfile(input_file), 'invalid input_file: %s' % input_file
+    output_folder, output_name = os.path.split(output_file)
+    assert os.path.isdir(output_folder), 'invalid output_folder: %s' % output_folder
+    assert output_name.strip()!='', 'empty output name'
+    assert os.path.isfile(args.language_model), 'invalid LM path: %s' % args.language_model
+    assert os.path.isfile(args.translation_model), 'invalid TM path: %s' % args.translation_model
+    assert os.path.isfile(args.source_language_model), 'invalid source LM path: %s' % args.source_language_model
+
     language_model = read_language_model(args.language_model,
                                          args.max_phrase_length,
                                          label='LOADING LANGUAGEMODEL TARGET')
