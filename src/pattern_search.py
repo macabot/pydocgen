@@ -9,6 +9,7 @@ import math
 import argparse
 import os
 import sys
+import time
 from collections import OrderedDict, defaultdict
 
 import decoder
@@ -45,7 +46,9 @@ class DecodeArguments:
 
     def get_bleu_score(self, weights):
         """Get the BLEU score of a translation"""
+        start_time = time.time()
         self.decode(weights)
+        print 'Decode time: %s seconds' % (time.time() - start_time,)
         return get_bleu_score(self.bleu_path, self.reference, self.output_file)
 
     def decode(self, weights):
@@ -293,7 +296,7 @@ def main():
 
     input_file = args.input_file
     output_file = args.output_file
-    
+
     # check if valid paths
     assert os.path.isfile(input_file), 'invalid input_file: %s' % input_file
     output_folder, output_name = os.path.split(output_file)
@@ -304,7 +307,7 @@ def main():
     assert os.path.isfile(args.source_language_model), 'invalid source LM path: %s' % args.source_language_model
     assert os.path.isfile(args.bleu_path), 'invalid bleu_path: %s' % args.bleu_path
     assert os.path.isfile(args.reference), 'invalid reference path: %s' % args.reference
-    
+
     max_phrase_length = args.max_phrase_length
     language_model = decoder.read_language_model(args.language_model,
                                         max_phrase_length,
@@ -356,6 +359,9 @@ def main():
 
 
 if __name__ == '__main__':
+    START_TIME = time.time()
     main()
+    print 'Total time: %s seconds' % (time.time() - START_TIME,)
+
     #test_optimize()
     #test_get_bleu_score()
