@@ -128,7 +128,7 @@ def read_translation_model(file_name, feature_weights, top_translations,
         if len(source) > max_phrase_length:
             continue
         target = tuple(segments[1].split())
-        probs = [float(prob) for prob in segments[2].split()]
+        probs = tuple([float(prob) for prob in segments[2].split()])
         # TODO what measure defines a good translation???
         measure = sum([prob * feature_weights[i] for i, prob in \
                        enumerate(probs)])

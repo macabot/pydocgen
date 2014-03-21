@@ -10,6 +10,7 @@ import argparse
 import os
 import sys
 import time
+import heapq
 from collections import OrderedDict, defaultdict
 
 import decoder
@@ -75,7 +76,7 @@ def get_bleu_score(bleu_path, reference, hypothesis):
     assert os.path.isfile(hypothesis), 'invalid hypothesis path: %s' % hypothesis
     bleu_out = os.popen("%s %s < %s" % (bleu_path, reference, hypothesis)).read()
     match = re.search(r'(?<=BLEU = )\d+(\.\d+)?', bleu_out)
-    assert match != None, 'unknown bleu output: %s' % bleu_out
+    assert match != None, 'unknown bleu output: %s' % bleu_out # check if file has execution permission
     return float(match.group(0))
 
 def test_get_bleu_score():
@@ -121,10 +122,12 @@ def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
                 score = get_score(add_weights)
                 weight_scores[t_add_weights] = score
                 print "w:%s, s:%s" % (add_weights, score)
-                if score > best_score:
-                    diff = score - best_score
-                    best_score = score
-                    best_weights = add_weights
+            else:
+                score = weight_scores[t_add_weights]
+            if score > best_score:
+                diff = score - best_score
+                best_score = score
+                best_weights = add_weights
             # subtract step size from weight_i
             subtract_weights = current_weights[:]
             subtract_weights[i] -= step_size
@@ -133,10 +136,12 @@ def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
                 score = get_score(subtract_weights)
                 weight_scores[t_subtract_weights] = score
                 print "w:%s, s:%s" % (subtract_weights, score)
-                if score > best_score:
-                    diff = score - best_score
-                    best_score = score
-                    best_weights = subtract_weights
+            else:
+                score = weight_scores[t_subtract_weights]
+            if score > best_score:
+                diff = score - best_score
+                best_score = score
+                best_weights = subtract_weights
 
         if previous_best_weights == best_weights:
             step_size /= 2.0
@@ -201,7 +206,7 @@ def read_full_translation_model(file_name, max_phrase_length):
         if len(source) > max_phrase_length:
             continue
         target = tuple(segments[1].split())
-        probs = [float(prob) for prob in segments[2].split()]
+        probs = tuple([float(prob) for prob in segments[2].split()])
 
         translation_model[source].append((target, probs))
 
@@ -216,11 +221,23 @@ def trim_translation_model(full_translation_model, weights,
     """Use the full_translation_model to create a smaller translation_model
     according to the restrictions of the weights and top_translations."""
     translation_model = defaultdict(list)
-    for source, target_probs in full_translation_model.iteritems():
-        sorted_target_probs = sorted(target_probs, key=lambda (_target, probs):
-                                     sum([prob * weights[i]
-                                     for i, prob in enumerate(probs)]))
-        translation_model[source] = sorted_target_probs[-top_translations:]
+    num_lines = len(full_translation_model)
+    point = num_lines / 100 if num_lines > 100 else 1
+    for i, (source, target_probs) in enumerate(full_translation_model.iteritems()):
+        if i % point == 0:
+            show_progress(i, num_lines, 40, 'TRIM FULLTRANSLATIONMODEL')
+        measure_target_probs = []
+        for target, probs in target_probs:
+            measure = sum([prob * weights[i] for i, prob in \
+                           enumerate(probs)])
+            if len(measure_target_probs) < top_translations:
+                heapq.heappush(measure_target_probs, (measure, target, probs))
+            else:
+                heapq.heappushpop(measure_target_probs, (measure, target, probs))
+        translation_model[source] = [(target, probs) for (_measure, target, probs) in measure_target_probs]
+
+    show_progress(1, 1, 40, 'TRIM FULLTRANSLATIONMODEL')
+    sys.stdout.write('\n')
     return translation_model
 
 def main():
