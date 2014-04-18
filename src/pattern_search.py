@@ -44,19 +44,44 @@ class DecodeArguments:
         # pattern search arguments
         self.bleu_path = bleu_path
         self.reference = reference
+        self.stored_tm = None
 
-    def get_bleu_score(self, weights):
+    def get_bleu_score(self, short_weights, weight_index = None):
         """Get the BLEU score of a translation"""
         start_time = time.time()
-        self.decode(weights)
+        # fixed weights: lm(e)=1.0, w.p.=1.0, l.d.=0.0
+        weights = (short_weights[0:4] +     # p(f|e), p(e|f), lex(f|e), lex(e|f)
+                  [1.0] +                   # lm(e)
+                  short_weights[4:5] +      # phrase penalty
+                  [1.0, 0.0] +              # word_penalty, linear distortion
+                  short_weights[5:6])       # empty penalty
+        # only the first 4 features affect the trimming of the full TM
+        store_translation_model = weight_index != None and weight_index >= 4
+        self.decode(weights, store_translation_model)
         print 'Decode time: %s seconds' % (time.time() - start_time,)
         return get_bleu_score(self.bleu_path, self.reference, self.output_file)
 
-    def decode(self, weights):
+    def decode(self, weights, store_translation_model):
         """Decode with given weights"""
-        translation_model = trim_translation_model(self.full_translation_model,
-                                                   weights,
-                                                   self.top_translations)
+        # if changed weight does not affect the translation_model
+        # store and reuse the translation_model
+        if store_translation_model:
+            if self.stored_tm == None:
+                translation_model = trim_translation_model(
+                                            self.full_translation_model,
+                                            weights,
+                                            self.top_translations)
+                self.stored_tm = translation_model
+            else:
+                translation_model = self.stored_tm
+        else:
+            self.stored_tm = None
+            translation_model = trim_translation_model(
+                                        self.full_translation_model,
+                                        weights,
+                                        self.top_translations)
+
+
         mp_worker.set_up_decoders(self.input_file, self.output_file,
                                   self.language_model,
                                   self.source_language_model,
@@ -119,7 +144,7 @@ def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
             add_weights[i] += step_size
             t_add_weights = tuple(add_weights)
             if t_add_weights not in weight_scores:
-                score = get_score(add_weights)
+                score = get_score(add_weights, i)
                 weight_scores[t_add_weights] = score
                 print "w:%s, s:%s" % (add_weights, score)
             else:
@@ -133,7 +158,7 @@ def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
             subtract_weights[i] -= step_size
             t_subtract_weights = tuple(subtract_weights)
             if t_subtract_weights not in weight_scores:
-                score = get_score(subtract_weights)
+                score = get_score(subtract_weights, i)
                 weight_scores[t_subtract_weights] = score
                 print "w:%s, s:%s" % (subtract_weights, score)
             else:
@@ -242,7 +267,7 @@ def trim_translation_model(full_translation_model, weights,
 
 def main():
     """Read command line arguments."""
-    NUM_FEATURES = 8
+    num_features = len(decoder.FEATURES)
 
     arg_parser = argparse.ArgumentParser()
     # decode arguments
@@ -272,10 +297,9 @@ def main():
         default=0.4, help="Stupid backoff.")
     arg_parser.add_argument("-ns", "--n_size", type=int,
         default=3, help="Size of language model")
-    arg_parser.add_argument("-w", "--feature_weights", nargs=NUM_FEATURES,
-        type=float, default=NUM_FEATURES*[1.0],
-        help="Initial feature weights. Order: p(f|e), p(e|f), l(f|e), l(e|f), \
-            lm(e), phrase penalty, word_penalty, linear distortion.")
+    arg_parser.add_argument("-w", "--feature_weights", nargs=num_features,
+        type=float, default=num_features*[1.0],
+        help="Initial feature weights. Order: %s" % ", ".join(decoder.FEATURES))
     arg_parser.add_argument('-tt', '--top_translations', type=int, default=10,
         help="Top translations for the translation model")
     arg_parser.add_argument('-pr', '--processes', type=int, default=1,

@@ -13,6 +13,11 @@ import bisect
 from utils import show_progress
 import os
 
+
+FEATURES = ['p(f|e)', 'p(e|f)', 'lex(f|e)', 'lex(e|f)', 'lm(e)',
+            'phrase penalty', 'word penalty', 'linear distortion',
+            'empty penalty']
+
 def shortest_path(start, end):
     '''Graph is internal in states.'''
     def flatten(L):       # Flatten linked list of form [0,[1,[2,[]]]]
@@ -537,7 +542,7 @@ def find_next_states(source_words, state, language_model, translation_model,
                                                         language_model,
                                                         n_size, stupid_backoff,
                                                         weights[4])
-            # 3. Phrase penalty is -1
+            # 3. Phrase penalty is -1*weight
             # calculated once at the start of this function
             # 4. Word penalty is a bonus for lengthy phrases
             if empty_target:
@@ -547,10 +552,15 @@ def find_next_states(source_words, state, language_model, translation_model,
             # 5. Linear distortion
             linear_distortion_cost = -abs(phrase_start - state.last_pos - 1) * \
                                      weights[7]
+            # 6. Empty penalty
+            if empty_target:
+                empty_penalty = -1 * weights[8]
+            else:
+                empty_penalty = 0.0
 
             transition_cost = phrase_penalty + phrase_translation_cost + \
                               word_penalty + lm_continuation_cost + \
-                              linear_distortion_cost
+                              linear_distortion_cost + empty_penalty
             new_coveragevector = state.coveragevector[:left_idx] + \
                     range(phrase_start, phrase_end) + \
                     state.coveragevector[left_idx:]
@@ -701,8 +711,7 @@ def get_future_cost(future_cost_dict, coverage, last_pos, weights):
 
 def main():
     """Read command line arguments."""
-    NUM_FEATURES = 8
-
+    num_features = len(FEATURES)
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-i", "--input_file", required=True,
             help="The file containing sentences to be translated")
@@ -730,10 +739,9 @@ def main():
         default=0.4, help="Stupid backoff.")
     arg_parser.add_argument("-ns", "--n_size", type=int,
         default=3, help="Size of language model")
-    arg_parser.add_argument("-w", "--feature_weights", nargs=NUM_FEATURES,
-        type=float, default=NUM_FEATURES*[1.0],
-        help="Feature weights. Order: p(f|e), p(e|f), l(f|e), l(e|f), lm(e),\
-            phrase penalty, word_penalty, linear distortion.")
+    arg_parser.add_argument("-w", "--feature_weights", nargs=num_features,
+        type=float, default=num_features*[1.0],
+        help="Feature weights. Order: %s" % ", ".join(FEATURES))
     arg_parser.add_argument('-tt', '--top_translations', type=int, default=10,
         help="Top translations for the translation model")
     arg_parser.add_argument('-pr', '--processes', type=int, default=1,
