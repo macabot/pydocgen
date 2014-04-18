@@ -63,14 +63,16 @@ def k_shortest_paths(shortestpath, targetnode, K=10, verbose=False):
                     # two cases
                     if verbose:
                         print "Removed link '{}'".format(next_node)
-                    if spurnode.onebackpointer and spurnode.onebackpointer[0] == next_node:
-                        to_restore[spurnode].append((next_node, spurnode.onebackpointer[1], True))
+                    if spurnode.onebackpointer and \
+                            spurnode.onebackpointer[0] == next_node:
+                        to_restore[spurnode].append((next_node,
+                                            spurnode.onebackpointer[1], True))
                         spurnode.onebackpointer = None
                     elif spurnode.manybackpointers:
                         for n, c in spurnode.manybackpointers:
                             if n == next_node:
                                 to_restore[spurnode].append((n, c, False))
-                                spurnode.manybackpointers.remove((n,c))
+                                spurnode.manybackpointers.remove((n, c))
                                 break
             # If a path is availablee after removing links
             if len(spurnode.manybackpointers) or spurnode.onebackpointer:
@@ -134,7 +136,7 @@ def read_translation_model(file_name, feature_weights, top_translations,
             continue
         target = tuple(segments[1].split())
         probs = tuple([float(prob) for prob in segments[2].split()])
-        # TODO what measure defines a good translation???
+        # weighted sum of conditional probabilities and lexical weights
         measure = sum([prob * feature_weights[i] for i, prob in \
                        enumerate(probs)])
         if len(translation_model[source]) < top_translations:
@@ -205,29 +207,6 @@ def get_language_model_prob(language_model, target_phrase, stupid_backoff):
         else:
             return -10000.0
 
-
-def do_the_work(input_file, output_file, translation_model, language_model,
-                source_language_model,
-                max_lines, max_phrase_length, beam_size,
-                stack_limit, stupid_backoff, n_size, feature_weights, nbest):
-    """print local arguments
-    TODO remove this function"""
-    args = locals()
-    for name in args.keys():
-        print name.ljust(20), args[name]
-    '''
-    print 'output %s' % output_file
-    print 'translation_model: %s' % translation_model
-    print 'language_model: %s' % language_model
-    print 'max_lines: %f' % max_lines
-    print 'max_phrase_length: %f' % max_phrase_length
-    print 'beam_size %s' % beam_size
-    print 'stack_limit: %f' % stack_limit
-    print 'beam_size: %f' % beam_size
-    print 'feature_weights: %s' % feature_weights
-    '''
-
-
 def test_decode():
     """test decode"""
     language_model = {("it's",): 0, ("a",): 0, ("trap",): -1, ("tarp",): -1,
@@ -235,20 +214,6 @@ def test_decode():
                       ("it's", "a", "trap"): 0, ("it's" ,"a", "tarp"): 0,
                       ("it", "is"): -1, ("it",): -1, ("is",): -2, ("the",):-2}
     source_language_model = {("c'est",): 0, ("un",): 0, ("phrase",): 0}
-    """translation_model = {
-            ("c'est", "un", "phrase"):
-                [ (("it's", "a", "trap"), (-19, -19, -13, -13)),
-                  (("it's", "a", "tarp"), (-19, -19, -14, -14)) ],
-            ("c'est",) :
-                [ (("it", "is"), [-4, -2, -1, -2])],
-            ("un",):
-                [ (("a",),   [-2,-3,-5,-1]),
-                  (("the",), [-2,-3,-2,-1]) ],
-            ("phrase",):
-                [ (("trap",), [-1,-2,-2,-6]),
-                  (("tarp",), [-1,-2,-3,-7]) ],
-            }
-    """
     translation_model = {
             ("c'est",)  : [ (("it", "is"),  [-4, -2, -1, -2]),  # -9
                             (("",),         [-9, -9, -9, -9])], # -36
@@ -338,11 +303,13 @@ class BeamStack():
                     other_state.last_pos != item.last_pos:
                 continue
             if other_state.prob > item.prob:  # Case 1, other_state used
-                other_state.recombinationpointers.append((item, item.prob - other_state.prob))
+                other_state.recombinationpointers.append(
+                                    (item, item.prob - other_state.prob))
                 return
             else:                             # Case 2, item used
                 pop_index = i
-                item.recombinationpointers.append((other_state, other_state.prob - item.prob))
+                item.recombinationpointers.append(
+                                    (other_state, other_state.prob - item.prob))
                 break
         if pop_index != None:
             self.stack.pop(pop_index)
@@ -373,7 +340,8 @@ class DecoderState():
     """Current state in a derivation."""
 
     def __init__(self, prob, history, translation, coveragevector,
-            onebackpointer, recombinationpointers, manybackpointers, last_pos, future_cost):
+            onebackpointer, recombinationpointers, manybackpointers, last_pos,
+            future_cost):
         self.prob = prob
         self.history = history
         self.translation = translation
@@ -419,7 +387,8 @@ class DecoderState():
 
 
 def decode(source_words, language_model, source_language_model,
-        translation_model, beam_size, max_phrase_length, stack_limit, stupid_backoff, n_size, feature_weights, nbest, empty_default):
+        translation_model, beam_size, max_phrase_length, stack_limit,
+        stupid_backoff, n_size, feature_weights, nbest, empty_default):
     """Decode one given sentence given models:
 
     return argmax_e p(f|e) . p(e)
@@ -485,13 +454,16 @@ def decode(source_words, language_model, source_language_model,
         viterbipath.append(state)
         state = state.onebackpointer[0]
     # Translation is now encoded in viterbipath in reverse order
-    viterbi_translation = ' '.join(t for t in reversed([s.translation for s in viterbipath]) if t != '')
+    viterbi_translation = ' '.join(t for t in reversed(
+                            [s.translation for s in viterbipath]) if t != '')
     if nbest == 1:
         return viterbi_translation
 
     # We could also get n-best list if the graph is known
     shortest_paths = k_shortest_paths(viterbipath, initial_state, nbest)
-    return [' '.join(t for t in reversed([s.translation for s in p if s is not None]) if t != '') for p in shortest_paths]
+    return [' '.join(t for t in 
+                     reversed([s.translation for s in p if s is not None]) 
+                     if t != '') for p in shortest_paths]
 
 
 def find_next_states(source_words, state, language_model, translation_model,
@@ -524,7 +496,8 @@ def find_next_states(source_words, state, language_model, translation_model,
         source_phrase = source_words[phrase_start:phrase_end]
         if len(source_phrase) == 1:
             if not empty_default:
-                default = [(source_phrase, (-10000.0, -10000.0, -10000.0, -10000.0))]
+                default = [(source_phrase, 
+                            (-10000.0, -10000.0, -10000.0, -10000.0))]
         else:
             default = []
         for target_and_probs in translation_model.get(source_phrase, default):
@@ -566,7 +539,8 @@ def find_next_states(source_words, state, language_model, translation_model,
                     state.coveragevector[left_idx:]
 
             new_last_pos = phrase_end - 1
-            future_cost = get_future_cost(future_cost_dict, new_coveragevector, new_last_pos, weights)
+            future_cost = get_future_cost(future_cost_dict, new_coveragevector,
+                                          new_last_pos, weights)
             if empty_target:
                 new_history = state.history[-(n_size-1):]
             else:
@@ -584,13 +558,13 @@ def find_next_states(source_words, state, language_model, translation_model,
 
             yield newstate
 
-def calc_lm_continuation(history, target_words, language_model, n,
+def calc_lm_continuation(history, target_words, language_model, n_size,
                          stupid_backoff, weight):
     """calculate the language model cost of the new target_words"""
     sentence = history + target_words
     probs = 0
     for i in xrange(len(history), len(sentence)):
-        ngram = tuple(sentence[max(i-n+1, 0):i+1])
+        ngram = tuple(sentence[max(i-n_size+1, 0):i+1])
         probs += weight * get_language_model_prob(language_model, ngram,
                                                   stupid_backoff)
     return probs
@@ -601,23 +575,27 @@ def calc_future_costs(TM, LMe, LMf,  source, stupid_backoff, weights):
     future_cost = {}
     for i in xrange(0, len(source)):
         for j in xrange(i, len(source)):
-            f = tuple(source[i:j+1])
+            phrase = tuple(source[i:j+1])
 
-            if f in TM:
-                lm_probs = (0.0 if e[0]==('',) else weights[4] * get_language_model_prob(LMe, e[0], stupid_backoff) for e in TM[f])
+            if phrase in TM:
+                lm_probs = (0.0 if e[0]==('',) else
+                            weights[4] * get_language_model_prob(LMe, e[0],
+                                            stupid_backoff) for e in TM[phrase])
                 conditional_probs = (weights[0] * e[1][0] +
                                      weights[1] * e[1][1] +
                                      weights[2] * e[1][2] +
-                                     weights[3] * e[1][3] for e in TM[f])
-                future_cost[i,j] = max(a + b for a, b in zip(lm_probs, conditional_probs))
+                                     weights[3] * e[1][3] for e in TM[phrase])
+                future_cost[i, j] = max(a + b for a, b in zip(lm_probs,
+                                                             conditional_probs))
             elif i == j:
-                future_cost[i,j] =  -10.0 + weights[4] * \
-                        get_language_model_prob(LMf, f, stupid_backoff)
+                future_cost[i, j] =  -10.0 + weights[4] * \
+                        get_language_model_prob(LMf, phrase, stupid_backoff)
             else:
-                future_cost[i,j] = -10000.0
-    for i in xrange(0,len(source)):
+                future_cost[i, j] = -10000.0
+    for i in xrange(0, len(source)):
         for j in xrange(i+1, len(source)):
-            future_cost[i,j] = max(max(future_cost[i,k]+future_cost[k+1, j] for k in xrange(i,j)),future_cost[i,j])
+            future_cost[i, j] = max(max(future_cost[i, k]+future_cost[k+1, j]
+                                       for k in xrange(i,j)),future_cost[i,j])
 
     return future_cost
 
@@ -632,8 +610,8 @@ def test_future_costs():
     LMe = {'x': -1, 'y': -2}
     LMf = {'a': -3, 'b': -4}
     weights = [1.0]*8
-    sb = math.log(0.4)
-    print calc_future_costs(TM, LMe, LMf, source, sb, weights)
+    stupid_backoff = math.log(0.4)
+    print calc_future_costs(TM, LMe, LMf, source, stupid_backoff, weights)
 
 def lm_test():
     """test calc_lm_continuation"""
@@ -655,17 +633,19 @@ def test_decoder_stack():
     states = []
     probs = [-3, -2, -100, -9, -2]
     futures = [-2, -2, -2, -2, -2]
-    temp_state = DecoderState(None, None, None, None, None, [], None, None, None)
+    temp_state = DecoderState(None, None, None, None, None, [], None, None,
+                              None)
     for i, prob in enumerate(probs):
-        state = DecoderState(prob, None, None, None, (temp_state, None), [], None, None, futures[i])
+        state = DecoderState(prob, None, None, None, (temp_state, None), [],
+                             None, None, futures[i])
         states.append(state)
 
     print stack
     for state in states:
         stack.append(state)
-        for s in stack:
-            print s
-            print s.recombinationpointers
+        for state in stack:
+            print state
+            print state.recombinationpointers
         print stack.best_prob
 
 def test_feature_weights():
@@ -693,7 +673,8 @@ def get_future_cost(future_cost_dict, coverage, last_pos, weights):
     """Get the predicted future cost at a partial translation"""
     cost = 0
     # translation and language cost
-    for i, j in ((coverage[i]+1, coverage[i+1]-1) for i in xrange(len(coverage)-1)):
+    for i, j in ((coverage[i]+1, coverage[i+1]-1)
+                 for i in xrange(len(coverage)-1)):
         if i <= j:
             cost += future_cost_dict[i, j]
     # linear distortion cost
@@ -776,8 +757,8 @@ def main():
                                                args.max_phrase_length)
 
     source_language_model = read_language_model(args.source_language_model,
-                                                args.max_phrase_length,
-                                                label='LOADING LANGUAGEMODEL SOURCE')
+                                        args.max_phrase_length,
+                                        label='LOADING LANGUAGEMODEL SOURCE')
     max_lines = args.max_lines
     max_phrase_length = args.max_phrase_length
     stack_limit = args.stack_limit
@@ -789,9 +770,7 @@ def main():
     empty_default = args.empty_default
 
     if args.processes < 1:
-        do_the_work(input_file, output_file, translation_model, language_model, source_language_model,
-                max_lines, max_phrase_length, beam_size,
-                stack_limit, stupid_backoff, n_size, feature_weights, nbest)
+        print 'number of processes should be >= 1'
     else:
         mp_worker.set_up_decoders(input_file, output_file, language_model,
                                   source_language_model,

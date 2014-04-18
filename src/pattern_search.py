@@ -354,7 +354,8 @@ def main():
                                         max_phrase_length,
                                         label='LOADING LANGUAGEMODEL TARGET')
 
-    source_language_model = decoder.read_language_model(args.source_language_model,
+    source_language_model = decoder.read_language_model(
+                                        args.source_language_model,
                                         max_phrase_length,
                                         label='LOADING LANGUAGEMODEL SOURCE')
 
