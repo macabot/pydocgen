@@ -267,7 +267,10 @@ def trim_translation_model(full_translation_model, weights,
 
 def main():
     """Read command line arguments."""
-    num_features = len(decoder.FEATURES)
+    features = ['p(f|e)', 'p(e|f)', 'lex(f|e)', 'lex(e|f)', 'phrase penalty',
+                'empty penalty']
+    # fixed weights: lm(e)=1.0, word penalty = 1.0, linear distortion = 0.0
+    num_features = len(features)
 
     arg_parser = argparse.ArgumentParser()
     # decode arguments
@@ -299,7 +302,7 @@ def main():
         default=3, help="Size of language model")
     arg_parser.add_argument("-w", "--feature_weights", nargs=num_features,
         type=float, default=num_features*[1.0],
-        help="Initial feature weights. Order: %s" % ", ".join(decoder.FEATURES))
+        help="Initial feature weights. Order: %s" % ", ".join(features))
     arg_parser.add_argument('-tt', '--top_translations', type=int, default=10,
         help="Top translations for the translation model")
     arg_parser.add_argument('-pr', '--processes', type=int, default=1,

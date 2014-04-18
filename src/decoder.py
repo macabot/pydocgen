@@ -14,10 +14,6 @@ from utils import show_progress
 import os
 
 
-FEATURES = ['p(f|e)', 'p(e|f)', 'lex(f|e)', 'lex(e|f)', 'lm(e)',
-            'phrase penalty', 'word penalty', 'linear distortion',
-            'empty penalty']
-
 def shortest_path(start, end):
     '''Graph is internal in states.'''
     def flatten(L):       # Flatten linked list of form [0,[1,[2,[]]]]
@@ -692,7 +688,10 @@ def get_future_cost(future_cost_dict, coverage, last_pos, weights):
 
 def main():
     """Read command line arguments."""
-    num_features = len(FEATURES)
+    features = ['p(f|e)', 'p(e|f)', 'lex(f|e)', 'lex(e|f)', 'lm(e)',
+                'phrase penalty', 'word penalty', 'linear distortion',
+                'empty penalty']
+    num_features = len(features)
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-i", "--input_file", required=True,
             help="The file containing sentences to be translated")
@@ -722,7 +721,7 @@ def main():
         default=3, help="Size of language model")
     arg_parser.add_argument("-w", "--feature_weights", nargs=num_features,
         type=float, default=num_features*[1.0],
-        help="Feature weights. Order: %s" % ", ".join(FEATURES))
+        help="Feature weights. Order: %s" % ", ".join(features))
     arg_parser.add_argument('-tt', '--top_translations', type=int, default=10,
         help="Top translations for the translation model")
     arg_parser.add_argument('-pr', '--processes', type=int, default=1,
