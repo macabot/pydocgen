@@ -51,7 +51,7 @@ def translation_distribution(path, num_lines=None):
 
     under10 = sum(y for x, y in freqs.iteritems() if x < 10)
     print 'under10: %d' % under10
-    
+
     x_values, y_values = zip(*freqs.items())
     total = sum(y_values)
     print 'total: %d' % total
@@ -176,27 +176,65 @@ def merge_length_maps(length_maps):
                 merged_map[sc_length] = doc_length_values
     return merged_map
 
-def plot_length_map(length_map):
+def plot_length_map(length_map, color):
     """Calculate the means and standard deviations of all doc length vaules and
     plot them with an errorbar."""
     # TODO label axes
-    length_items = sorted(length_map.items())
+    #length_items = sorted(length_map.items())
+    length_items = length_map.items()
     sc_lengths, doc_length_values = zip(*length_items)
     doc_means = [np.mean(v) for v in doc_length_values]
     doc_stds = [np.std(v) for v in doc_length_values]
-    doc_len = [len(v) for v in doc_length_values]
-    plt.errorbar(sc_lengths, doc_means, doc_stds, marker='o', linestyle='')
-    plt.plot(sc_lengths, doc_len, 'ro')
-    plt.show()
+    #doc_len = [len(v) for v in doc_length_values]
+    return plt.errorbar(sc_lengths, doc_means, doc_stds, marker='o', linestyle='', color = color)
+    #plt.plot(sc_lengths, doc_len, 'ro')
+    #return plt
+
+def save_length_map(path, length_map):
+    """save length map to file"""
+    with open(path, 'w') as out:
+        for sc_length, doc_lengths in length_map.iteritems():
+            out.write('%s ||| %s\n' % (sc_length, ' '.join(str(doc) for doc in doc_lengths)))
+
+def read_length_map(path):
+    """read length map from file"""
+    length_map = {}
+    with open(path, 'r') as in_file:
+        for line in in_file:
+            segments = line.strip().split(' ||| ')
+            sc_length = int(segments[0])
+            doc_lengths = [int(doc) for doc in segments[1].split()]
+            length_map[sc_length] = doc_lengths
+    return length_map
 
 def test_plot_length_map():
     """Test plot_length_map"""
-    path = '../data/docstring-filtered_sourcecode-NOcontext-NOfactors'
-    paths = ((sc_path, sc_path[:-3] + '.doc') for sc_path in utils.iter_files_with_extension(path, '.sc'))
-    length_maps = (parallel_length_map(sc_path, doc_path) for sc_path, doc_path in paths)
-    merged_map = merge_length_maps(length_maps)
+    # raw
+    # path = '../data/docstring-all_sourcecode-all-factors'
+    # paths = ((sc_path, sc_path[:-3] + '.doc') for sc_path in utils.iter_files_with_extension(path, '.sc'))
+    # length_maps = (parallel_length_map(sc_path, doc_path) for sc_path, doc_path in paths)
+    # length_map = merge_length_maps(length_maps)
+    # save_length_map('../data/raw_length_map.txt', length_map)
+    length_map = read_length_map('../data/raw_length_map.txt')
+    length_map = {k: v for k, v in length_map.iteritems() if k <= 100}
+    p_raw = plot_length_map(length_map, 'r')
+    #plt.title('raw data: average docstring words per source code words')
+    # plt.savefig('../images/average-docstring-words_raw.pdf')
+    # plt.show()
 
-    plot_length_map(merged_map)
+    # clean
+    # base_path = '../data/clean/clean_docstring-filtered_sourcecode-NOcontext-NOfactors.tok'
+    # length_map = parallel_length_map(base_path + '.sc', base_path + '.doc')
+    # save_length_map('../data/clean_length_map.txt', length_map)
+    length_map = read_length_map('../data/clean_length_map.txt')
+    p_clean = plot_length_map(length_map, 'b')
+    plt.xlim(1, 101)
+    plt.xlabel('source code words')
+    plt.ylabel('docstring words: mean and standard deviation')
+    plt.title('docstring words per source code words')
+    plt.legend([p_raw, p_clean], ['raw', 'clean'], numpoints = 1)
+    plt.savefig('../images/docstring-sourcecode-words_raw_clean.pdf')
+    plt.show()
 
 def count_all_methods_and_functions(path):
     """Read all .sc filder in the given folder and count the number of methods
@@ -236,6 +274,24 @@ def test_count_methods_and_functions():
     print count_methods_and_functions(path)
     print count_all_methods_and_functions(path)
 
+def get_repo_names(in_path, out_path):
+    """get all repository names and sources"""
+    with open(out_path, 'w') as out:
+        for zip_path in utils.iter_files_with_extension(in_path, '.zip'):
+            _folder, zip_name = os.path.split(zip_path)
+            info_path = zip_path[:-4] + '.info'
+            with open(info_path) as file_in:
+                repo_source = file_in.next().strip()
+            repo_name = zip_name[:-4]
+            out.write(r'%s & \url{%s} \\' % (repo_name, repo_source))
+            out.write('\n')
+
+def test_get_repo_names():
+    """test get_repo_names"""
+    in_path = '../repos/'
+    out_path = '../data/repo_names.txt'
+    get_repo_names(in_path, out_path)
+
 
 if __name__ == '__main__':
     #test_average_ratio()
@@ -245,4 +301,5 @@ if __name__ == '__main__':
     #test_plot_length_map()
     #test_count_methods_and_functions()
     #test_histogram_from_file()
-    test_translation_distribution()
+    #test_translation_distribution()
+    test_get_repo_names()
