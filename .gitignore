@@ -1,3 +1,9 @@
+working/*
+images/*
+commands/*
+src/bleu_kit/*
+src/bash/*
+
 log.txt
 
 temp/*
