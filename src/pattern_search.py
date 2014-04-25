@@ -50,13 +50,15 @@ class DecodeArguments:
         """Get the BLEU score of a translation"""
         start_time = time.time()
         # fixed weights: lm(e)=1.0, w.p.=1.0, l.d.=0.0
-        weights = (short_weights[0:4] +     # p(f|e), p(e|f), lex(f|e), lex(e|f)
-                  [1.0] +                   # lm(e)
-                  short_weights[4:5] +      # phrase penalty
-                  [1.0, 0.0] +              # word_penalty, linear distortion
-                  short_weights[5:6])       # empty penalty
+        #weights = (short_weights[0:4] +     # p(f|e), p(e|f), lex(f|e), lex(e|f)
+        #          [1.0] +                   # lm(e)
+        #          short_weights[4:5] +      # phrase penalty
+        #          [1.0, 0.0] +              # word_penalty, linear distortion
+        #          short_weights[5:6])       # empty penalty
+        weights = [5.0, 1.0, 0.0, 0.0, 1.0, 2.0, 1.0, 0.0] + short_weights
         # only the first 4 features affect the trimming of the full TM
-        store_translation_model = weight_index != None and weight_index >= 4
+        #store_translation_model = weight_index != None and weight_index >= 4
+        store_translation_model = True
         self.decode(weights, store_translation_model)
         print 'Decode time: %s seconds' % (time.time() - start_time,)
         return get_bleu_score(self.bleu_path, self.reference, self.output_file)
@@ -267,8 +269,10 @@ def trim_translation_model(full_translation_model, weights,
 
 def main():
     """Read command line arguments."""
-    features = ['p(f|e)', 'p(e|f)', 'lex(f|e)', 'lex(e|f)', 'phrase penalty',
-                'empty penalty']
+    #features = ['p(f|e)', 'p(e|f)', 'lex(f|e)', 'lex(e|f)', 'phrase penalty',
+    #            'empty penalty']
+    features = ['empty penalty']
+    # fixed weights: 5.0, 1.0, 0.0, 0.0, 1.0, 2.0, 1.0, 0.0
     # fixed weights: lm(e)=1.0, word penalty = 1.0, linear distortion = 0.0
     num_features = len(features)
 
