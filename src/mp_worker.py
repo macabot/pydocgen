@@ -65,7 +65,7 @@ def set_up_decoders(input_file, output_file, language_model,
     return translations
 
 
-def set_up_workers(alignments_file, source_file, target_file, output_file,
+def set_up_workers(alignments_file, source_file, target_file,
                    max_phrase_length, max_lines, num_processes, task_id):
     alignments = open(alignments_file, 'r')
     num_lines = sum(1 for line in open(alignments_file))

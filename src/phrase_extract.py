@@ -835,7 +835,7 @@ def do_the_work2(alignments, source, target, outputfile, max_lines, max_length, 
     else:
         reordering_counts = \
                 mp_worker.set_up_workers(alignments, source, target,
-                                         outputfile, max_length,
+                                         max_length,
                                          max_lines, processes, task_id=1)
 
     dict_to_file('counts.'+outputfile, reordering_counts, "%s%s\n",
@@ -861,7 +861,7 @@ def do_the_work(alignments, source, target, outputfile, max_lines, max_length, p
     else:
         phrase_freqs, lex_freqs, phrase_to_internals = \
             mp_worker.set_up_workers(alignments, source, target,
-                                     outputfile, max_length,
+                                     max_length,
                                      max_lines, processes, task_id=0)
 
     phrase_pair_freqs, source_phrase_freqs, target_phrase_freqs = phrase_freqs
