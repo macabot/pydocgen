@@ -236,7 +236,7 @@ def main():
     processes = args.processes
     parts = args.parts
 
-    increasing_data(alignments, source, target, max_length, outputfile,
+    increasing_data(alignments, source, target, outputfile, max_length,
                     processes, parts)
 
 if __name__ == '__main__':
