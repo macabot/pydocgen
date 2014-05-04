@@ -216,7 +216,8 @@ def increasing_data(alignments_path, source_path, target_path, output_path,
     cumulative_freqs = calc_cumulative_freqs(frequencies)
     # calculate the conditional probabilities and lexical weights
     for i, freq in enumerate(cumulative_freqs):
-        outputfile = 'tm_' + names[i]
+        output_dir, output_name = os.path.split(names[i])
+        outputfile = os.path.join(output_dir, 'tm_' + output_name)
         continue_phrase_extract(freq, outputfile)
 
 def main():
