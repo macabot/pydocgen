@@ -9,6 +9,7 @@ import argparse
 import os
 import random
 import sys
+import time
 from collections import defaultdict
 
 import phrase_extract
@@ -54,6 +55,7 @@ def get_frequencies(path, max_length, processes):
     source = path + '.sc'
     target = path + '.doc'
     max_lines = float('inf')
+    start = time.time()
     if processes <= 1:
         phrase_freqs, lex_freqs, phrase_to_internals = \
             phrase_extract.extract_phrase_pair_freqs(alignments, source, target,
@@ -63,11 +65,12 @@ def get_frequencies(path, max_length, processes):
             mp_worker.set_up_workers(alignments, source, target,
                                      max_length,
                                      max_lines, processes, task_id=0)
+    print 'time: %s' % (time.time() - start,)
     return phrase_freqs, lex_freqs, phrase_to_internals
 
 def combine_int_dicts(dict_a, dict_b):
-    """combine two dicts that have default values"""
-    new_dict = {}
+    """combine two integer defaultdicts"""
+    new_dict = defaultdict(int)
     for key in set(dict_a.keys()) | set(dict_b.keys()):
         new_dict[key] = dict_a[key] + dict_b[key]
     return new_dict
@@ -192,6 +195,15 @@ def increasing_data(alignments_path, source_path, target_path, output_path,
     for name in names:
         freq = get_frequencies(name, max_length, processes)
         frequencies.append(freq)
+        # write to file
+        phrase_pair_freqs, source_phrase_freqs, target_phrase_freqs = freq[0]
+        phrase_extract.freqs_to_file(name + '_temp_extracted_phrases.txt',
+                                 phrase_pair_freqs, source_phrase_freqs,
+                                 target_phrase_freqs)
+        lex_pair_freqs, source_lex_freqs, target_lex_freqs = freq[1]
+        phrase_extract.freqs_to_file(name + '_temp_extracted_lexwords.txt',
+                                     lex_pair_freqs, source_lex_freqs,
+                                     target_lex_freqs)
     # cumulatively combine the frequencies
     cumulative_freqs = calc_cumulative_freqs(frequencies)
     # calculate the conditional probabilities and lexical weights
