@@ -178,6 +178,13 @@ def continue_phrase_extract(freq, outputfile):
 
     sys.stdout.write('Done.\n')
 
+def phrase_to_internals_to_file(path, phrase_to_internals):
+    """write phrase_to_internals to file"""
+    with open(path, 'w') as out:
+        for phrase_pair, possible_internals in phrase_to_internals.iteritems():
+            out.write('%s ||| %s ||| %s\n' % (phrase_pair[0], phrase_pair[1],
+                            ' ||| '.join(str(p) for p in possible_internals)))
+
 def increasing_data(alignments_path, source_path, target_path, output_path,
                     max_length, processes, parts):
     """Create translation models of different portions of the traindata"""
@@ -204,6 +211,7 @@ def increasing_data(alignments_path, source_path, target_path, output_path,
         phrase_extract.freqs_to_file(name + '_temp_extracted_lexwords.txt',
                                      lex_pair_freqs, source_lex_freqs,
                                      target_lex_freqs)
+        phrase_to_internals_to_file(name + '_temp_aligments.txt', freq[2])
     # cumulatively combine the frequencies
     cumulative_freqs = calc_cumulative_freqs(frequencies)
     # calculate the conditional probabilities and lexical weights
