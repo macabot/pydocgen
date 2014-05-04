@@ -211,7 +211,7 @@ def increasing_data(alignments_path, source_path, target_path, output_path,
         phrase_extract.freqs_to_file(name + '_temp_extracted_lexwords.txt',
                                      lex_pair_freqs, source_lex_freqs,
                                      target_lex_freqs)
-        phrase_to_internals_to_file(name + '_temp_aligments.txt', freq[2])
+        phrase_to_internals_to_file(name + '_temp_alignments.txt', freq[2])
     # cumulatively combine the frequencies
     cumulative_freqs = calc_cumulative_freqs(frequencies)
     # calculate the conditional probabilities and lexical weights
