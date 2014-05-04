@@ -76,7 +76,7 @@ def combine_int_dicts(dict_a, dict_b):
     return new_dict
 
 def combine_set_dicts(dict_a, dict_b):
-    """combine two dicts that have default values"""
+    """combine two dicts that map to sets"""
     new_dict = {}
     for key in set(dict_a.keys()) | set(dict_b.keys()):
         if key in dict_a:
