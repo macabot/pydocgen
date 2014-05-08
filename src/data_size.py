@@ -72,7 +72,15 @@ def combine_int_dicts(dict_a, dict_b):
     """combine two integer defaultdicts"""
     new_dict = defaultdict(int)
     for key in set(dict_a.keys()) | set(dict_b.keys()):
-        new_dict[key] = dict_a[key] + dict_b[key]
+        if key in dict_a:
+            value_a = dict_a[key]
+        else:
+            value_a = 0
+        if key in dict_b:
+            value_b = dict_b[key]
+        else:
+            value_b = 0
+        new_dict[key] = value_a + value_b
     return new_dict
 
 def combine_set_dicts(dict_a, dict_b):
@@ -92,7 +100,10 @@ def combine_set_dicts(dict_a, dict_b):
 
 def calc_cumulative_freqs(frequencies):
     """cumulatively combine the frequencies"""
-    cumulative_freqs = [((defaultdict(int),)*3,)*2 + ({},)]
+    #cumulative_freqs = [((defaultdict(int),)*3,)*2 + ({},)]
+    cumulative_freqs = [((defaultdict(int), defaultdict(int), defaultdict(int)),
+                         (defaultdict(int), defaultdict(int), defaultdict(int)),
+                         {})]
     for (phrase_pair_freqs, source_phrase_freqs, target_phrase_freqs), \
             (lex_pair_freqs, source_lex_freqs, target_lex_freqs), \
             phrase_to_internals in frequencies:
