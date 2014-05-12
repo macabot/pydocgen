@@ -12,6 +12,37 @@ import sys
 
 import utils
 
+
+def cumulative_portions():
+    """plot the BLEU score of different portions of the dataset"""
+    tm_normal_unknown_self =       [ 0.26,  3.82,  5.25,  6.42,  7.82,  8.47,
+                                     9.48,  9.94, 10.61, 11.19, 11.63]
+    tm_normal_unknown_empty =      [ 0.0 ,  4.44,  5.68,  6.81,  8.22,  9.02,
+                                     9.96, 10.33, 10.73, 11.30, 11.66]
+    tm_empty_unknown_self =        [ 0.26,  5.33,  7.20,  8.45,  9.95, 10.68,
+                                    11.53, 12.28, 12.86, 13.50, 13.76]
+    tm_empty_unknown_empty =       [ 0.0 ,  5.31,  7.07,  8.67, 10.36, 11.22,
+                                    12.13, 13.08, 13.67, 14.26, 14.63]
+    tm_extra_empty_unknown_self =  [ 0.26,  5.00,  6.77,  8.05,  9.62, 10.60,
+                                    11.79, 12.52, 13.30, 14.02, 14.34]
+    tm_extra_empty_unknown_empty = [ 0.0 ,  4.77,  6.63,  7.94,  9.54, 10.53,
+                                    11.73, 12.47, 13.26, 13.98, 14.30]
+    portions = range(0, 101, 10)
+    plt.plot(portions, tm_normal_unknown_self, 'ro') # , ls='-'
+    plt.plot(portions, tm_normal_unknown_empty, 'rx')
+    plt.plot(portions, tm_empty_unknown_self, 'go')
+    plt.plot(portions, tm_empty_unknown_empty, 'gx')
+    plt.plot(portions, tm_extra_empty_unknown_self, 'bo')
+    plt.plot(portions, tm_extra_empty_unknown_empty, 'bx')
+    plt.xlabel('portion of all training data (%)')
+    plt.ylabel('BLEU score (%)')
+    #plt.title('TODO')
+    plt.legend(['tm: normal, unknown: self', 'tm: normal, unknown: empty',
+                'tm: empty, unknown: self', 'tm: empty, unknown: empty',
+                'tm: extra empty, unknown: self', 'tm: extra empty, unknown: empty'],
+               numpoints=1, loc=4)
+    plt.show()
+
 def read_translation_freqs(file_name, num_lines=None):
     """Read the number of source translations"""
     translation_freqs = defaultdict(int)
@@ -302,4 +333,5 @@ if __name__ == '__main__':
     #test_count_methods_and_functions()
     #test_histogram_from_file()
     #test_translation_distribution()
-    test_get_repo_names()
+    #test_get_repo_names()
+    cumulative_portions()
