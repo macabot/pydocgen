@@ -62,13 +62,13 @@ def iter_zipfiles_with_extension(zip_file, extension):
 def count_lines_with_extension(path, extension):
     """Count the number of lines of all files in the given path with the given
     extension"""
-    return sum(number_of_lines(p) 
+    return sum(number_of_lines(p)
                for p in iter_files_with_extension(path, extension))
 
 def num_lines_with_extension(path, extension):
     """Return a generator of tuples of the number of lines in a file and that
     file, given that the file has a certain extension"""
-    return ((number_of_lines(p), p) 
+    return ((number_of_lines(p), p)
             for p in iter_files_with_extension(path, extension))
 
 def number_of_lines(path):
