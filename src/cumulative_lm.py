@@ -7,7 +7,7 @@ import os
 from collections import defaultdict
 
 import lm
-import data_size
+import cumulative_tm
 
 
 def combine_language_models(lm_freqs):
@@ -15,7 +15,7 @@ def combine_language_models(lm_freqs):
     cumulative_freqs = [(defaultdict(int), 0)]
     for ngram_counts, total_unigrams in lm_freqs:
         previous = cumulative_freqs[-1]
-        new_ngram_counts = data_size.combine_int_dicts(ngram_counts,
+        new_ngram_counts = cumulative_tm.combine_int_dicts(ngram_counts,
                                                        previous[0])
         new_total_unigrams = total_unigrams + previous[1]
         cumulative_freqs.append((new_ngram_counts, new_total_unigrams))
