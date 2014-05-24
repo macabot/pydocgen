@@ -6,6 +6,7 @@ Preprocess a parallel corpus before passing it to a SMT framework, such as Moses
 import os
 import re
 import argparse
+import sys
 
 from ast_plus import NEWLINE_SUB
 import docfilters
@@ -67,7 +68,7 @@ def process_docstring(docstring, filters):
         docstring = docfilter(docstring)
     return re.sub(r'\s+', ' ', docstring.strip()).lower()
 
-def preprocess(in_path, out_folder, keep_factors, filters):
+def preprocess(in_path, out_folder, keep_factors, filters, line_map_path = None):
     """Preprocess a parallel corpus"""
     in_folder, in_basename = os.path.split(in_path)
     assert os.path.isdir(in_folder), 'invalid in folder: %s' % in_folder
@@ -82,9 +83,19 @@ def preprocess(in_path, out_folder, keep_factors, filters):
     sc_out_path = os.path.join(out_folder, sc_basename)
     doc_out_path = os.path.join(out_folder, doc_basename)
 
+    num_lines = sum(1 for line in open(sc_in_path, 'r'))
+    point = num_lines / 100 if num_lines > 100 else 1
+
+    if line_map_path != None:
+        line_map_out = open(line_map_path, 'w')
+    else:
+        line_map_out = None
     with open(sc_in_path, 'r') as sc_in, open(doc_in_path, 'r') as doc_in, \
             open(sc_out_path, 'w') as sc_out, open(doc_out_path, 'w') as doc_out:
-        for sc_line in sc_in:
+        for i, sc_line in enumerate(sc_in):
+            if i % point == 0:
+                utils.show_progress(i, num_lines, 40, 'PREPROCESSING')
+
             sc_words = sc_line.strip().split()
             docstring = doc_in.next().strip()
 
@@ -95,6 +106,13 @@ def preprocess(in_path, out_folder, keep_factors, filters):
 
             sc_out.write('%s\n' % ' '.join(sc_words))
             doc_out.write('%s\n' % docstring)
+            if line_map_out != None:
+                line_map_out.write('%d\n' % i)
+    if line_map_out != None:
+        line_map_out.close()
+
+    utils.show_progress(1, 1, 40, 'PREPROCESSING')
+    sys.stdout.write('\n')
 
 def test_preprocess():
     """test preprocess"""
