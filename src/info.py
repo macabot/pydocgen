@@ -7,19 +7,22 @@ represent functions and their sources
 import re
 import argparse
 import os
+import bisect
 
 class InfoCorpus:
     """holds all info files in a corpus"""
 
     def __init__(self, info_files):
         self.info_files = info_files
+        self.concat_maxes = [info_file.max_concat_index() for info_file in
+                             self.info_files]
 
     @staticmethod
     def read(paths):
         """create an infocorpus from files"""
         info_files = []
         for path in paths:
-            info_files.append(InfoFile.read(path))
+            info_files.extend(InfoFile.read(path))
         return InfoCorpus(info_files)
 
     def write(self, path):
@@ -32,14 +35,32 @@ class InfoCorpus:
         """add concatenation index"""
         for info_file in self.info_files:
             index = info_file.set_concat_indexes(index)
+        self.concat_maxes = [info_file.max_concat_index() for info_file in
+                             self.info_files]
 
     def subset(self, concat_indexes):
         """"return an infocorpus containing a subset of the infofunctions
         with the given concat_indexes"""
-        concat_indexes = set(concat_indexes)
-        subset_files = [info_file.subset(concat_indexes)
-                        for info_file in self.info_files]
-        return InfoCorpus(subset_files)
+        # group the functions
+        grouped_functions = [(None, [])]
+        for index in concat_indexes:
+            function, zip_path = self.get_function_and_path(index)
+            if grouped_functions[-1][0] == zip_path:
+                grouped_functions[-1][1].append(function)
+            else:
+                grouped_functions.append((zip_path, [function]))
+        # create files
+        info_files = [InfoFile(zip_path, functions) for zip_path, functions
+                      in grouped_functions[1:]]
+        return InfoCorpus(info_files)
+
+    def get_function_and_path(self, concat_index):
+        """Return the info function and its zip_path of the given
+        concat_index"""
+        file_index = bisect.bisect_left(self.concat_maxes, concat_index)
+        info_file = self.info_files[file_index]
+        return info_file.get_function(concat_index), info_file.zip_path
+
 
 class InfoFile:
     """holds the content of an info file"""
@@ -47,6 +68,12 @@ class InfoFile:
     def __init__(self, zip_path, info_functions):
         self.zip_path = zip_path
         self.info_functions = info_functions
+        self.index_to_function = {function.concat_index:function for function in
+                                  self.info_functions}
+
+    def get_function(self, concat_index):
+        """return the function with the given concat_index"""
+        return self.index_to_function[concat_index]
 
     @staticmethod
     def read(path):
@@ -55,8 +82,9 @@ class InfoFile:
         start_count_pattern = re.compile(r'^<count:(\d+)>$')
         end_count_pattern = re.compile(r'^</count:(\d+)>$')
 
-        info_functions = []
+        info_files = []
         with open(path, 'r') as in_file:
+            info_functions = []
             zip_path_string = in_file.next()
             zip_path_match = zip_path_pattern.search(zip_path_string)
             if zip_path_match == None:
@@ -68,9 +96,14 @@ class InfoFile:
             temp_lines = []
             count_open = False
             for line in in_file:
+                zip_path_match = zip_path_pattern.search(line)
                 start_count_match = start_count_pattern.search(line)
                 end_count_match = end_count_pattern.search(line)
-                if start_count_match != None:
+                if zip_path_match != None:
+                    info_files.append(InfoFile(zip_path, info_functions))
+                    zip_path = zip_path_match.group(1)
+                    info_functions = []
+                elif start_count_match != None:
                     count = int(start_count_match.group(1))
                     count_open = True
                 elif end_count_match != None:
@@ -81,7 +114,9 @@ class InfoFile:
                     temp_lines = []
                 if count_open:
                     temp_lines.append(line)
-        return InfoFile(zip_path, info_functions)
+            # append last info file
+            info_files.append(InfoFile(zip_path, info_functions))
+        return info_files
 
     def __repr__(self):
         return '<zip_path>' + self.zip_path + '</zip_path>\n' + \
@@ -96,6 +131,8 @@ class InfoFile:
         """add concatenation index"""
         for i, info_function in enumerate(self.info_functions):
             info_function.concat_index = index + i
+        self.index_to_function = {function.concat_index:function for function in
+                                  self.info_functions}
         return index + len(self.info_functions)
 
     def subset(self, concat_indexes):
@@ -104,6 +141,14 @@ class InfoFile:
         subset_functions = [function for function in self.info_functions
                             if function.concat_index in concat_indexes]
         return InfoFile(self.zip_path, subset_functions)
+
+    def max_concat_index(self):
+        """return the max concat_index"""
+        return self.info_functions[-1].concat_index
+
+    def min_concat_index(self):
+        """return the min concat_index"""
+        return self.info_functions[0].concat_index
 
 
 class InfoFunction:
@@ -185,11 +230,13 @@ def main():
     assert out_name.strip()!='', 'empty out_name'
     info_corpus = InfoCorpus.read([corpus])
     if args.set_indexes:
+        print 'set_indexes'
         info_corpus.set_concat_indexes()
+
     concat_indexes = read_concat_indexes(indexes)
     subset_info_corpus = info_corpus.subset(concat_indexes)
     subset_info_corpus.write(out)
-    
+
 
 if __name__ == '__main__':
     main()
