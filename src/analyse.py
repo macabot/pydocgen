@@ -9,9 +9,26 @@ import matplotlib.pyplot as plt
 from collections import Counter, defaultdict
 import os
 import sys
+from itertools import izip
+import bisect
 
 import utils
 
+
+def number_of_refhyp_words(hyp_path, ref_path):
+    length_map = parallel_length_map(ref_path, hyp_path)
+    plot_length_map(length_map, 'r')
+    plt.xlabel('reference words')
+    plt.ylabel('hypothesis words: mean and standard deviation')
+    plt.title('hypothesis words per reference words')
+    #plt.legend([p_raw, p_clean], ['raw', 'clean'], numpoints = 1)
+    plt.savefig('../images/ref_hyp_words.pdf')
+    plt.show()
+
+def test_number_of_refhyp_words():
+    hyp_path = '../data/decode/testset_optimized_weights_and_search/tm-extra-empty_unknown-self_NOfactors.doc_STACKTOPBEAMCORE30'
+    ref_path = '../data/test/test_clean_docstring-filtered_sourcecode-NOcontext-NOfactors.tok.doc'
+    number_of_refhyp_words(hyp_path, ref_path)
 
 def cumulative_portions():
     """plot the BLEU score of different portions of the dataset"""
@@ -41,7 +58,46 @@ def cumulative_portions():
                 'tm: empty, unknown: self', 'tm: empty, unknown: empty',
                 'tm: extra empty, unknown: self', 'tm: extra empty, unknown: empty'],
                numpoints=1, loc=4)
+    #plt.savefig('../images/cumulative_portions.pdf')
     plt.show()
+
+def word_lengths(path):
+    """get list of word lengths in file"""
+    words = []
+    with open(path, 'r') as file_in:
+        for line in file_in:
+            words.append(len(line.strip().split()))
+    return words
+
+def sorted_lengths(path):
+    """lines in file are sorted by quality. plot the number of words"""
+    words = word_lengths(path)
+    words.reverse()
+    x_values = range(len(words))
+    plt.plot(x_values, words, 'ro')
+    plt.xlabel('quality')
+    plt.ylabel('number of words')
+    plt.show()
+
+def test_sorted_lengths():
+    """test sorted_lengths"""
+    sorted_lengths('../data/analyse/bleu_sorted_testset_tm-extra-empty_unknown-self.sc')
+
+def ratio_lengths(sc_path, doc_path):
+    sc_words = word_lengths(sc_path)
+    doc_words = word_lengths(doc_path)
+    ratios = [float(sc) / doc for sc, doc in zip(sc_words, doc_words)]
+    ratios.reverse()
+    x_values = range(len(ratios))
+    plt.plot(x_values, ratios, 'ro')
+    plt.xlabel('quality')
+    plt.ylabel('ratio sc / doc')
+    plt.show()
+
+def test_ratio_lenghts():
+    sc_path = '../data/analyse/bleu_sorted_testset_tm-extra-empty_unknown-self.sc'
+    doc_path = '../data/analyse/bleu_sorted_testset_tm-extra-empty_unknown-self.doc'
+    ratio_lengths(sc_path, doc_path)
 
 def read_translation_freqs(file_name, num_lines=None):
     """Read the number of source translations"""
@@ -99,6 +155,40 @@ def test_translation_distribution():
     """test translation_distribution"""
     path = '../data/phrases/multicore/empty_phrases_NOfactors_alllines_7phraselength_all_info.txt'
     translation_distribution(path, 5486072)
+
+def test_histogram_sentence_word_counts():
+    path = '../data/test/test_clean_docstring-filtered_sourcecode-NOcontext-NOfactors.tok.doc'
+    counts = sentence_word_counts(path)
+    histogram(counts, 50)
+
+def test_sentence_word_ranges():
+    path = '../data/test/test_clean_docstring-filtered_sourcecode-NOcontext-NOfactors.tok.doc'
+    counts = sentence_word_counts(path)
+    counts.sort()
+    chunks = chunkIt(counts, 4)
+    for chunk in chunks:
+        print len(chunk)
+        print chunk[0], chunk[-1]
+
+def chunkIt(seq, num):
+    """http://stackoverflow.com/a/2130035/854488"""
+    avg = len(seq) / float(num)
+    out = []
+    last = 0.0
+
+    while last < len(seq):
+        out.append(seq[int(last):int(last + avg)])
+        last += avg
+
+    return out
+
+def sentence_word_counts(path):
+    """get list of word count per sentence in file"""
+    counts = []
+    with open(path, 'r') as in_file:
+        for line in in_file:
+            counts.append(len(line.strip().split()))
+    return counts
 
 def histogram(data, num_bins):
     """plot a histogram"""
@@ -323,6 +413,114 @@ def test_get_repo_names():
     out_path = '../data/repo_names.txt'
     get_repo_names(in_path, out_path)
 
+def sort_hypref_by_sourcecode(sc_path, doc_hyp_path, doc_ref_path, out_dir):
+    """sort docstring hypothesis and references by source code length"""
+    pairs = []
+    with open(sc_path, 'r') as sc_in, \
+            open(doc_hyp_path, 'r') as doc_hyp_in, \
+            open(doc_ref_path, 'r') as doc_ref_in:
+        for sc_line, doc_hyp_line, doc_ref_line in izip(sc_in, doc_hyp_in, doc_ref_in):
+            sc_amount = len(sc_line.strip().split())
+            pairs.append((sc_amount, doc_hyp_line, doc_ref_line))
+    pairs.sort()
+    _doc_hyp_dir, doc_hyp_name = os.path.split(doc_hyp_path)
+    _doc_ref_dir, doc_ref_name = os.path.split(doc_ref_path)
+    doc_hyp_out_path = os.path.join(out_dir, 'sc_sorted_' + doc_hyp_name)
+    doc_ref_out_path = os.path.join(out_dir, 'sc_sorted_' + doc_ref_name)
+    sc_length_path = os.path.join(out_dir, 'sc_line_lengths.txt')
+    with open(doc_hyp_out_path, 'w') as doc_hyp_out, \
+            open(doc_ref_out_path, 'w') as doc_ref_out, \
+            open(sc_length_path, 'w') as sc_length_in:
+        for sc_amount, doc_hyp_line, doc_ref_line in pairs:
+            doc_hyp_out.write(doc_hyp_line)
+            doc_ref_out.write(doc_ref_line)
+            sc_length_in.write('%d\n' % sc_amount)
+
+def test_sort_hypref_by_sourcecode():
+    sc_path = '../data/test/test_clean_docstring-filtered_sourcecode-NOcontext-NOfactors.tok.sc'
+    doc_hyp_path = '../data/decode/testset_optimized_weights_and_search/tm-extra-empty_unknown-self_NOfactors.doc_STACKTOPBEAMCORE30'
+    doc_ref_path = '../data/test/test_clean_docstring-filtered_sourcecode-NOcontext-NOfactors.tok.doc'
+    out_dir = '../data/analyse/sort_hypref_by_sourcecode'
+    sort_hypref_by_sourcecode(sc_path, doc_hyp_path, doc_ref_path, out_dir)
+
+def group_hypref_by_functionmethod(sc_path, doc_hyp_path, doc_ref_path, out_dir):
+    """group docstring hypothesis and reference by whether the source code is
+    a function or method."""
+    functions = []
+    methods = []
+    with open(sc_path, 'r') as sc_in, \
+            open(doc_hyp_path, 'r') as doc_hyp_in, \
+            open(doc_ref_path, 'r') as doc_ref_in:
+        for sc_line, doc_hyp_line, doc_ref_line in izip(sc_in, doc_hyp_in, doc_ref_in):
+            sc_words = set(sc_line.strip().split())
+            if 'self' in sc_words:
+                methods.append((doc_hyp_line, doc_ref_line))
+            else:
+                functions.append((doc_hyp_line, doc_ref_line))
+    _doc_hyp_dir, doc_hyp_name = os.path.split(doc_hyp_path)
+    _doc_ref_dir, doc_ref_name = os.path.split(doc_ref_path)
+    function_doc_hyp_out_path = os.path.join(out_dir, 'functions_' + doc_hyp_name)
+    function_doc_ref_out_path = os.path.join(out_dir, 'functions_' + doc_ref_name)
+    method_doc_hyp_out_path = os.path.join(out_dir, 'methods_' + doc_hyp_name)
+    method_doc_ref_out_path = os.path.join(out_dir, 'methods_' + doc_ref_name)
+    write_hypref_to_file(functions, function_doc_hyp_out_path, function_doc_ref_out_path)
+    write_hypref_to_file(methods, method_doc_hyp_out_path, method_doc_ref_out_path)
+
+def write_hypref_to_file(pairs, hyp_path, ref_path):
+    """write pairs of hypothesis and references to file"""
+    with open(hyp_path, 'w') as hyp_out, \
+            open(ref_path, 'w') as ref_out:
+        for hyp_line, ref_line in pairs:
+            hyp_out.write(hyp_line)
+            ref_out.write(ref_line)
+
+def test_group_hypref_by_functionmethod():
+    sc_path = '../data/test/test_clean_docstring-filtered_sourcecode-NOcontext-NOfactors.tok.sc'
+    doc_hyp_path = '../data/decode/testset_optimized_weights_and_search/tm-extra-empty_unknown-self_NOfactors.doc_STACKTOPBEAMCORE30'
+    doc_ref_path = '../data/test/test_clean_docstring-filtered_sourcecode-NOcontext-NOfactors.tok.doc'
+    out_dir = '../data/analyse/group_hypref_by_function-method'
+    group_hypref_by_functionmethod(sc_path, doc_hyp_path, doc_ref_path, out_dir)
+
+def train_line_ranges(train_path, out_path, parts):
+    """find equal ranges of words in traindata"""
+    lengths = []
+    with open(train_path, 'r') as train_in:
+        for line in train_in:
+            lengths.append(len(line.strip().split()))
+    lengths.sort()
+    with open(out_path, 'w') as out:
+        for split_range in split_ranges(lengths, parts):
+            out.write('%d-%d: %d\n' % split_range)
+            
+def test_train_line_ranges():
+    train_path = '../data/train/train_clean_docstring-filtered_sourcecode-NOcontext-NOfactors.tok.sc'
+    parts = 10
+    out_path = '../data/analyse/train-sc_ranges/train-sc_ranges%d.txt' % parts
+    train_line_ranges(train_path, out_path, parts)
+    
+    
+def split_ranges(array, parts):
+    step_size = len(array) // parts
+    even_split_indexes = range(0, len(array), step_size)
+    range_split_indexes = []
+    for split_index in even_split_indexes:
+        value = array[split_index]
+        left_index = bisect.bisect_left(array, value)
+        right_index = bisect.bisect_right(array, value)
+        left_diff = abs(left_index - split_index)
+        right_diff = abs(right_index - split_index)
+        if left_diff < right_diff:
+            range_split_indexes.append(left_index)
+        else:
+            range_split_indexes.append(right_index)
+    return ((array[start], array[end-1], end - start) for start, end in
+            izip(range_split_indexes, range_split_indexes[1:] + [len(array)]))
+    
+def test_split_ranges():
+    array = [1,1,1,1,1,1,2,2,2,3,3,3,4,4,4,4,4,4,4,5]
+    parts = 4
+    print list(split_ranges(array, parts))
+
 
 if __name__ == '__main__':
     #test_average_ratio()
@@ -334,4 +532,13 @@ if __name__ == '__main__':
     #test_histogram_from_file()
     #test_translation_distribution()
     #test_get_repo_names()
-    cumulative_portions()
+    #cumulative_portions()
+    #test_sorted_lengths()
+    #test_ratio_lenghts()
+    #test_number_of_refhyp_words()
+    #test_histogram_sentence_word_counts()
+    #test_sentence_word_ranges()
+    #test_sort_hypref_by_sourcecode()
+    #test_group_hypref_by_functionmethod()
+    #test_split_ranges()
+    test_train_line_ranges()
