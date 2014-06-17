@@ -8,6 +8,7 @@ log.txt
 
 temp/*
 repos/*
+repos_ood/*
 data/*
 
 *.py[cod]
