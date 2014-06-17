@@ -521,15 +521,10 @@ def find_next_states(source_words, state, language_model, translation_model,
             # 5. Linear distortion
             linear_distortion_cost = -abs(phrase_start - state.last_pos - 1) * \
                                      weights[7]
-            # 6. Empty penalty
-            if empty_target:
-                empty_penalty = -1 * weights[8]
-            else:
-                empty_penalty = 0.0
 
             transition_cost = phrase_penalty + phrase_translation_cost + \
                               word_penalty + lm_continuation_cost + \
-                              linear_distortion_cost + empty_penalty
+                              linear_distortion_cost
             new_coveragevector = state.coveragevector[:left_idx] + \
                     range(phrase_start, phrase_end) + \
                     state.coveragevector[left_idx:]
@@ -689,8 +684,7 @@ def get_future_cost(future_cost_dict, coverage, last_pos, weights):
 def main():
     """Read command line arguments."""
     features = ['p(f|e)', 'p(e|f)', 'lex(f|e)', 'lex(e|f)', 'lm(e)',
-                'phrase penalty', 'word penalty', 'linear distortion',
-                'empty penalty']
+                'phrase penalty', 'word penalty', 'linear distortion']
     num_features = len(features)
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-i", "--input_file", required=True,
