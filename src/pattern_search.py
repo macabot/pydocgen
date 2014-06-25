@@ -131,6 +131,7 @@ def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
             step_size >= min_step_size:
         print "i:%s, w:%s, s:%s" % (iteration, best_weights, best_score)
         previous_best_weights = best_weights[:]
+        previous_best_score = best_score
         current_weights = best_weights[:]
         for i in xrange(len(weights)):
             # add step size to weight_i
@@ -144,7 +145,6 @@ def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
             else:
                 score = weight_scores[t_add_weights]
             if score > best_score:
-                diff = score - best_score
                 best_score = score
                 best_weights = add_weights
             # subtract step size from weight_i
@@ -158,12 +158,14 @@ def optimize(weights, get_score, step_size, min_score_diff, min_step_size,
             else:
                 score = weight_scores[t_subtract_weights]
             if score > best_score:
-                diff = score - best_score
                 best_score = score
                 best_weights = subtract_weights
 
         if previous_best_weights == best_weights:
             step_size /= 2.0
+        else:
+            # only calculate the score difference if the weights have changed
+            diff = best_score - previous_best_score
 
         iteration += 1
 
@@ -203,8 +205,7 @@ def read_weight_scores(path):
         for line in in_file:
             weights, score = line.strip().split(' ||| ')
             weights = [float(w) for w in weights.split()]
-            score = float(score)
-            weight_scores[weights] = score
+            weight_scores[tuple(weights)] = float(score)
     return weight_scores
 
 def read_full_translation_model(file_name, max_phrase_length):
