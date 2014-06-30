@@ -36,8 +36,11 @@ def cumulative_portions():
                                      9.48,  9.94, 10.61, 11.19, 11.63]
     tm_normal_unknown_empty =      [ 0.0 ,  4.44,  5.68,  6.81,  8.22,  9.02,
                                      9.96, 10.33, 10.73, 11.30, 11.66]
-    tm_empty_unknown_self =        [ 0.26,  5.33,  7.20,  8.45,  9.95, 10.68,
-                                    11.53, 12.28, 12.86, 13.50, 13.76]
+    # WRONG uses old pattern_search
+    #tm_empty_unknown_self =        [ 0.26,  5.33,  7.20,  8.45,  9.95, 10.68,
+    #                                11.53, 12.28, 12.86, 13.50, 13.76]
+    tm_empty_unknown_self =        [ 0.26,  5.58,  7.40,  8.72, 10.13, 10.93,
+                                    12.03, 12.62, 13.29, 13.72, 14.12]
     tm_empty_unknown_empty =       [ 0.0 ,  5.31,  7.07,  8.67, 10.36, 11.22,
                                     12.13, 13.08, 13.67, 14.26, 14.63]
     tm_extra_empty_unknown_self =  [ 0.26,  5.00,  6.77,  8.05,  9.62, 10.60,
@@ -532,7 +535,7 @@ if __name__ == '__main__':
     #test_histogram_from_file()
     #test_translation_distribution()
     #test_get_repo_names()
-    #cumulative_portions()
+    cumulative_portions()
     #test_sorted_lengths()
     #test_ratio_lenghts()
     #test_number_of_refhyp_words()
@@ -541,4 +544,4 @@ if __name__ == '__main__':
     #test_sort_hypref_by_sourcecode()
     #test_group_hypref_by_functionmethod()
     #test_split_ranges()
-    test_train_line_ranges()
+    #test_train_line_ranges()
