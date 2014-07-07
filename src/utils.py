@@ -7,6 +7,12 @@ Useful tools.
 import os
 import sys
 
+
+def list_diff(list_a, list_b):
+    """Return the elements in list_a that do not occur in list b"""
+    set_b = set(list_b)
+    return [x for x in list_a if x not in set_b]
+
 def file_exists(name):
     """Return true if file exists"""
     try:
