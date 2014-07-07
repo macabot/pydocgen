@@ -10,8 +10,11 @@ import heapq
 import math
 import time
 import bisect
-from utils import show_progress
+from utils import show_progress, list_diff
 import os
+
+
+DEBUG = None
 
 
 def shortest_path(start, end):
@@ -452,15 +455,37 @@ def decode(source_words, language_model, source_language_model,
     # Translation is now encoded in viterbipath in reverse order
     viterbi_translation = ' '.join(t for t in reversed(
                             [s.translation for s in viterbipath]) if t != '')
+    #print 'DEBUG: %s' % DEBUG
+    #if DEBUG != None:
+    if True:
+        print 'DEBUG: alignments'
+        alignment_path = '/home/michael/pydocgen/data/analyse/investigate/viterbi_alignments.txt'
+        with open(alignment_path, 'a') as alignment_out:
+            alignment_out.write('<info>\n')
+            alignment_out.write('%s\n' % ' '.join(source_words))
+            for vs in reversed(viterbipath):
+                alignment_out.write('DecoderState(\n%s\n%s\n%s\n%s\n)\n' % (vs.history, vs.translation, vs.coveragevector, vs.last_pos))
+            alignment_out.write('</info>\n')
     if nbest == 1:
         return viterbi_translation
 
     # We could also get n-best list if the graph is known
     shortest_paths = k_shortest_paths(viterbipath, initial_state, nbest)
-    return [' '.join(t for t in 
-                     reversed([s.translation for s in p if s is not None]) 
+    return [' '.join(t for t in
+                     reversed([s.translation for s in p if s is not None])
                      if t != '') for p in shortest_paths]
 
+def get_alignments(source_words, viterbipath):
+    """get the phrase alignments used in the translation of the viterbi-path"""
+    alignments = []
+    new_coverage = viterbipath[0].coveragevector
+    for state in viterbipath[1:]:
+        previous_coverage = list(new_coverage)
+        new_coverage = list_diff(state.coveragevector, previous_coverage)
+        source = ' '.join(source_words[i] for i in new_coverage)
+        target = state.translation
+        alignments.append((source, target))
+    return alignments
 
 def find_next_states(source_words, state, language_model, translation_model,
         max_phrase_length, stupid_backoff, n_size, weights, future_cost_dict,
@@ -492,7 +517,7 @@ def find_next_states(source_words, state, language_model, translation_model,
         source_phrase = source_words[phrase_start:phrase_end]
         if len(source_phrase) == 1:
             if not empty_default:
-                default = [(source_phrase, 
+                default = [(source_phrase,
                             (-10000.0, -10000.0, -10000.0, -10000.0))]
         else:
             default = []
@@ -680,6 +705,11 @@ def get_future_cost(future_cost_dict, coverage, last_pos, weights):
 
     return cost + distortion_cost
 
+def test_debug():
+    if DEBUG != None:
+        print 'debug is not None'
+    else:
+        print 'debug is None'
 
 def main():
     """Read command line arguments."""
@@ -726,8 +756,18 @@ def main():
         default=False,
         help="If true: unknown words are translated with an empty string. Else:\
         unknown words are translated with itself.")
+    arg_parser.add_argument('--DEBUG', default=None,
+        help="For debugging purposes.")
 
     args = arg_parser.parse_args()
+
+    global DEBUG
+    DEBUG = args.DEBUG
+    #print '<<<'
+    print DEBUG
+    #print '>>>'
+    #test_debug()
+
 
     input_file = args.input_file
     output_file = args.output_file
